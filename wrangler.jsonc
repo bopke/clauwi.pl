@@ -14,11 +14,15 @@
 	"observability": {
 		"enabled": true
 	},
-	// Production custom domain. Requires the clauwi.pl zone on this Cloudflare
-	// account; `wrangler deploy` provisions the DNS record + certificate.
+	// STAGING domain while the real clauwi.pl cutover is pending — the apex
+	// already has DNS pointing at the live legacy WordPress host, so Workers
+	// Custom Domains can't attach there yet without first clearing those
+	// records (a deliberate, separate decision — see clauwi-rewrite-project
+	// memory). Swap back to clauwi.pl (custom_domain: true) when ready to cut
+	// over; `wrangler deploy` will provision the DNS record + certificate.
 	"routes": [
 		{
-			"pattern": "clauwi.pl",
+			"pattern": "staging.clauwi.pl",
 			"custom_domain": true
 		}
 	],
