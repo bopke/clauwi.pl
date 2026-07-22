@@ -11,7 +11,7 @@ export type PublicPage = { items: Advisor[]; total: number };
 
 const COLUMNS = [
   "id", "nazwa", "poziom", "wojewodztwo", "miejscowosc",
-  "email", "www", "telefon", "oferta", "aktywny",
+  "email", "www", "telefon", "oferta", "waznoscUprawnien", "uwagi", "aktywny",
 ] as const;
 
 async function db(): Promise<D1Database> {
@@ -32,6 +32,8 @@ function rowToAdvisor(r: Row): Advisor {
     www: (r.www as string) ?? "",
     telefon: (r.telefon as string) ?? "",
     oferta: (r.oferta as string) ?? "",
+    waznoscUprawnien: (r.waznoscUprawnien as string) ?? "",
+    uwagi: (r.uwagi as string) ?? "",
     aktywny: !!r.aktywny,
   };
 }
@@ -40,7 +42,7 @@ function insertStmt(DB: D1Database, a: Advisor) {
   const placeholders = COLUMNS.map(() => "?").join(", ");
   return DB.prepare(`INSERT OR IGNORE INTO advisors (${COLUMNS.join(", ")}) VALUES (${placeholders})`).bind(
     a.id, a.nazwa, a.poziom, a.wojewodztwo, a.miejscowosc,
-    a.email, a.www, a.telefon, a.oferta, a.aktywny ? 1 : 0,
+    a.email, a.www, a.telefon, a.oferta, a.waznoscUprawnien, a.uwagi, a.aktywny ? 1 : 0,
   );
 }
 
@@ -114,11 +116,11 @@ export async function updateAdvisor(a: Advisor): Promise<void> {
   await DB.prepare(
     `UPDATE advisors SET
        nazwa = ?, poziom = ?, wojewodztwo = ?, miejscowosc = ?,
-       email = ?, www = ?, telefon = ?, oferta = ?, aktywny = ?
+       email = ?, www = ?, telefon = ?, oferta = ?, waznoscUprawnien = ?, uwagi = ?, aktywny = ?
      WHERE id = ?`,
   ).bind(
     a.nazwa, a.poziom, a.wojewodztwo, a.miejscowosc,
-    a.email, a.www, a.telefon, a.oferta, a.aktywny ? 1 : 0,
+    a.email, a.www, a.telefon, a.oferta, a.waznoscUprawnien, a.uwagi, a.aktywny ? 1 : 0,
     a.id,
   ).run();
 }
