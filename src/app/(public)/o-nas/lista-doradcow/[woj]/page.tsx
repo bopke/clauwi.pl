@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/clauwi/site-header";
 import { SiteFooter } from "@/components/clauwi/site-footer";
 import { JsonLd } from "@/components/clauwi/json-ld";
 import { breadcrumbListJsonLd } from "@/lib/clauwi/breadcrumbs";
+import { AdvisorSearchTable } from "@/components/clauwi/advisor-search-table";
 import { WOJ_META } from "@/lib/clauwi/advisors";
 import { listPublicAdvisors } from "@/lib/clauwi/advisors-repo";
 
@@ -71,38 +72,7 @@ export default async function RegionPage({
               : `Aktywni doradcy: ${items.length}`}
           </p>
 
-          {items.length > 0 && (
-            <div className="mt-10 overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left uppercase tracking-wide text-ink/50">
-                    <th className="py-3 pr-4">Doradca</th>
-                    <th className="py-3 pr-4">Poziom</th>
-                    <th className="py-3 pr-4">Miejscowość</th>
-                    <th className="py-3 pr-4">Adres e-mail</th>
-                    <th className="py-3 pr-4">Strona WWW</th>
-                    <th className="py-3 pr-4">Telefon</th>
-                    <th className="py-3 pr-4">Oferta dodatkowa</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((a) => (
-                    <tr key={a.id} className="border-b border-border/60">
-                      <td className="py-3 pr-4 font-medium">{a.nazwa}</td>
-                      <td className="py-3 pr-4 text-ink/75">{a.poziom}</td>
-                      <td className="py-3 pr-4 text-ink/75">{a.miejscowosc}</td>
-                      <td className="py-3 pr-4 text-ink/75">
-                        {a.email && <a href={`mailto:${a.email}`} className="hover:text-brand">{a.email}</a>}
-                      </td>
-                      <td className="py-3 pr-4 text-ink/75">{a.www}</td>
-                      <td className="py-3 pr-4 text-ink/75">{a.telefon}</td>
-                      <td className="py-3 pr-4 text-ink/75">{a.oferta}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {items.length > 0 && <AdvisorSearchTable items={items} />}
         </section>
       </main>
       <SiteFooter />
