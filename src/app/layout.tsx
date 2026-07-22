@@ -52,7 +52,7 @@ export default function RootLayout({
   return (
     <html
       lang="pl"
-      className={`${montserrat.variable} ${cormorant.variable} h-full antialiased`}
+      className={`${montserrat.variable} ${cormorant.variable} h-full`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
