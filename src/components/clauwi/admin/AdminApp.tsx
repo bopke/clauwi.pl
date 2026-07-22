@@ -30,7 +30,7 @@ const TrashIcon = () => (
 // ====== Formularz doradcy (modal) ======
 const EMPTY: AdvisorDraft = {
   nazwa: "", poziom: "", wojewodztwo: WOJ_META[0].slug, miejscowosc: "",
-  email: "", telefon: "", www: "", oferta: "", aktywny: true,
+  email: "", telefon: "", www: "", oferta: "", waznoscUprawnien: "", uwagi: "", aktywny: true,
 };
 
 function AdvisorForm({ initial, onSave, onClose }: { initial: Advisor | null; onSave: (data: AdvisorDraft) => void; onClose: () => void }) {
@@ -116,6 +116,17 @@ function AdvisorForm({ initial, onSave, onClose }: { initial: Advisor | null; on
             <span>Oferta dodatkowa <small>(opcjonalnie)</small></span>
             <input value={f.oferta} onChange={(e) => set("oferta", e.target.value)} placeholder="np. Szkolenia indywidualne i grupowe, sklep, wypożyczalnia" />
           </label>
+
+          <div className="adm-grid2">
+            <label className="adm-f">
+              <span>Ważność uprawnień <small>(opcjonalnie)</small></span>
+              <input value={f.waznoscUprawnien} onChange={(e) => set("waznoscUprawnien", e.target.value)} placeholder="np. 2027-05-01" />
+            </label>
+            <label className="adm-f">
+              <span>Uwagi <small>(wewnętrzne, niepubliczne)</small></span>
+              <input value={f.uwagi} onChange={(e) => set("uwagi", e.target.value)} placeholder="notatka dla administratora" />
+            </label>
+          </div>
         </div>
         <div className="adm-sheet__foot">
           <button type="button" className="adm-btn adm-btn--ghost" onClick={onClose}>Anuluj</button>
@@ -212,7 +223,7 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
       <div className="adm-tablewrap">
         <table className="adm-table">
           <thead>
-            <tr><th>Doradca</th><th>Poziom</th><th>Województwo / miejscowość</th><th>Kontakt</th><th className="adm-th-act">Akcje</th></tr>
+            <tr><th>Doradca</th><th>Poziom</th><th>Województwo / miejscowość</th><th>Kontakt</th><th>Ważność / uwagi</th><th className="adm-th-act">Akcje</th></tr>
           </thead>
           <tbody>
             {view.map((a) => (
@@ -233,6 +244,10 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
                   {a.telefon && <div>{a.telefon}</div>}
                   {a.www && <div>{a.www}</div>}
                 </td>
+                <td className="adm-td-addr">
+                  {a.waznoscUprawnien && <div>Ważność: {a.waznoscUprawnien}</div>}
+                  {a.uwagi && <div>{a.uwagi}</div>}
+                </td>
                 <td className="adm-td-act">
                   <button className="adm-iconbtn" title="Edytuj" onClick={() => setEditing(a)}>
                     <svg viewBox="0 0 24 24" width="17" height="17"><path d="M4 20h4l10-10-4-4L4 16v4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="M14 6l4 4" stroke="currentColor" strokeWidth="2" /></svg>
@@ -244,7 +259,7 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
               </tr>
             ))}
             {view.length === 0 && (
-              <tr><td colSpan={5} className="adm-empty">{loading ? "Wczytywanie…" : "Brak doradców dla podanych kryteriów."}</td></tr>
+              <tr><td colSpan={6} className="adm-empty">{loading ? "Wczytywanie…" : "Brak doradców dla podanych kryteriów."}</td></tr>
             )}
           </tbody>
         </table>

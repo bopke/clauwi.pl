@@ -19,6 +19,8 @@ export type Advisor = {
   www: string; // adres strony lub link/opis (np. "Fb: ...")
   telefon: string;
   oferta: string; // "Oferta dodatkowa"
+  waznoscUprawnien: string; // "Ważność uprawnień" — data ważności certyfikatu, wolny tekst
+  uwagi: string; // "Uwagi" — notatki wewnętrzne, nie pokazywane publicznie
   aktywny: boolean; // odpowiada koncepcji strony "lista aktywnych doradców"
 };
 
