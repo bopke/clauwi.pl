@@ -10,8 +10,9 @@
 //   node scripts/mirror.mjs home /
 //   node scripts/mirror.mjs o-nas /o-nas/
 //
-// Asset URLs (images/fonts) are left pointing at https://clauwi.pl for now and
-// will be localized to R2 before cutover.
+// Asset URLs (images/fonts) are rewritten to /assets/<path> (served from R2 —
+// see localizeAssetUrls() below and scripts/upload-assets.mjs) so the mirrored
+// site no longer depends on the live clauwi.pl host staying up.
 
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -53,6 +54,21 @@ const LINK_ALIASES = {
   // intentionally; the real destination readers want is the advisor directory.
   "/doradcy": "/o-nas/lista-doradcow/",
 };
+
+// Rewrite any /wp-content/... asset URL (images, fonts, plugin/theme assets —
+// any protocol, any of the site's own hostnames) to a relative /assets/...
+// path served by src/app/assets/[...path]/route.ts from the MEDIA R2 bucket.
+// Deliberately blanket: it rewrites every wp-content reference, not just ones
+// we've confirmed are used — scripts/upload-assets.mjs is what decides which
+// files are actually fetched (via a real-browser crawl) and only uploads
+// those. A rewritten-but-never-uploaded URL simply 404s from R2, which is no
+// worse than it being an untriggered dead link today.
+export function localizeAssetUrls(text) {
+  return text.replace(
+    /(?:https?:)?\/\/(?:www\.|n\.)?clauwi\.pl(\/wp-content\/[^"'\\)\s]+)/g,
+    (_m, path) => `/assets${path}`,
+  );
+}
 
 function rewriteInternalLinks(body) {
   body = body.replace(/href=(["'])https?:\/\/(?:www\.)?clauwi\.pl(\/[^"']*)?\1/g, (m, q, path) => {
@@ -173,7 +189,7 @@ export async function mirrorPage(slug, path) {
     if (!url.includes("clauwi.pl")) { newBaseCss += `@import url("${url}");\n`; continue; }
     try {
       const css = await (await fetch(url, { headers: UA })).text();
-      newBaseCss += `\n/* ${href} */\n` + stripLegacyCssHacks(rewriteCssUrls(css, url)) + "\n";
+      newBaseCss += `\n/* ${href} */\n` + localizeAssetUrls(stripLegacyCssHacks(rewriteCssUrls(css, url))) + "\n";
     } catch (e) {
       console.warn("skip css", url, e.message);
     }
@@ -192,7 +208,7 @@ export async function mirrorPage(slug, path) {
 
   // --- page-specific inline <style> blocks ---
   const inlineStyles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
-  const css = stripLegacyCssHacks(inlineStyles.join("\n"));
+  const css = localizeAssetUrls(stripLegacyCssHacks(inlineStyles.join("\n")));
 
   // --- extract + clean body ---
   let body = (html.match(/<body[^>]*>([\s\S]*)<\/body>/) || [])[1] || "";
@@ -206,6 +222,7 @@ export async function mirrorPage(slug, path) {
   body = rewriteInternalLinks(body);
   body = rewriteFooterCredit(body);
   body = fillAltText(body);
+  body = localizeAssetUrls(body);
 
   const bodyClass = (html.match(/<body[^>]*class=["']([^"']*)["']/) || [])[1] || "";
 
