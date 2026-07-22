@@ -70,6 +70,22 @@ export function localizeAssetUrls(text) {
   );
 }
 
+// Assets that are 404 on the live site ITSELF (pre-existing broken references,
+// not something we introduced) — dropping the whole declaration is better
+// than localizing a link that will just 404 from R2 too, since the browser
+// still logs a failed request either way. Keyed by the asset's basename.
+const BROKEN_ASSETS = ["Clauwi®komputer-1-1.png"];
+
+export function stripBrokenAssetRefs(css) {
+  for (const name of BROKEN_ASSETS) {
+    css = css.replace(
+      new RegExp(`background-image:url\\(['"]?[^'")]*${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]?\\);?`, "g"),
+      "",
+    );
+  }
+  return css;
+}
+
 function rewriteInternalLinks(body) {
   body = body.replace(/href=(["'])https?:\/\/(?:www\.)?clauwi\.pl(\/[^"']*)?\1/g, (m, q, path) => {
     return `href=${q}${path || "/"}${q}`;
@@ -189,7 +205,7 @@ export async function mirrorPage(slug, path) {
     if (!url.includes("clauwi.pl")) { newBaseCss += `@import url("${url}");\n`; continue; }
     try {
       const css = await (await fetch(url, { headers: UA })).text();
-      newBaseCss += `\n/* ${href} */\n` + localizeAssetUrls(stripLegacyCssHacks(rewriteCssUrls(css, url))) + "\n";
+      newBaseCss += `\n/* ${href} */\n` + localizeAssetUrls(stripBrokenAssetRefs(stripLegacyCssHacks(rewriteCssUrls(css, url)))) + "\n";
     } catch (e) {
       console.warn("skip css", url, e.message);
     }
@@ -208,7 +224,7 @@ export async function mirrorPage(slug, path) {
 
   // --- page-specific inline <style> blocks ---
   const inlineStyles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
-  const css = localizeAssetUrls(stripLegacyCssHacks(inlineStyles.join("\n")));
+  const css = localizeAssetUrls(stripBrokenAssetRefs(stripLegacyCssHacks(inlineStyles.join("\n"))));
 
   // --- extract + clean body ---
   let body = (html.match(/<body[^>]*>([\s\S]*)<\/body>/) || [])[1] || "";
