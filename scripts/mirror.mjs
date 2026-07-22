@@ -106,6 +106,41 @@ function rewriteFooterCredit(body) {
   );
 }
 
+// Public Turnstile sitekey (not secret — safe to bake into static HTML).
+// Created via the turnstile-spin skill, account 1567723ff568a1bffcc2baf79c4cf320,
+// registered for localhost/127.0.0.1/staging.clauwi.pl/clauwi.pl. The paired
+// secret (TURNSTILE_SECRET_KEY) lives only in .dev.vars / wrangler secrets and
+// is checked server-side in src/app/api/contact/route.ts.
+const TURNSTILE_SITEKEY = "0x4AAAAAAD7Pd82wpJ8Bnluu";
+
+// Wires the mirrored Kadence contact form (home + kontakt pages only — NOT
+// the "opinie" testimonial-submission form, a different form entirely) up to
+// src/app/api/contact/route.ts, which sends the message via Brevo. Kadence's
+// own JS normally intercepts submission for an AJAX post; since we strip all
+// scripts, the safest fix is a plain native form POST — no client JS needed.
+// Matched by data-label="Message" (unique to this form's textarea; opinie's
+// textarea is labeled "Treść opinii"), not by the per-page _kb_form_id, which
+// is a generated hash that could change on a future re-mirror. Also injects a
+// Turnstile widget before the submit button — the token rides along as the
+// standard cf-turnstile-response form field and is checked server-side.
+export function rewriteContactFormAction(body) {
+  return body.replace(
+    /<form class="kb-form" action="" method="post">([\s\S]*?)<\/form>/g,
+    (whole, inner) => {
+      if (!inner.includes('data-label="Message"')) return whole;
+      return whole
+        .replace(
+          '<form class="kb-form" action="" method="post">',
+          '<form class="kb-form" data-contact-form="true" action="/api/contact" method="post">',
+        )
+        .replace(
+          '<div class="kadence-blocks-form-field kb-submit-field',
+          `<div class="cf-turnstile" data-sitekey="${TURNSTILE_SITEKEY}" data-action="turnstile-spin-v1"></div><div class="kadence-blocks-form-field kb-submit-field`,
+        );
+    },
+  );
+}
+
 // Content images left with empty alt="" by the original WordPress editors
 // (accessibility + image-search gap). Keyed by filename (basename of the src
 // URL, ignoring WordPress's size suffix like "-1024x720"), applied to every
@@ -237,6 +272,7 @@ export async function mirrorPage(slug, path) {
     .replace(/ (on\w+)=("[^"]*"|'[^']*')/g, ""); // strip inline event handlers
   body = rewriteInternalLinks(body);
   body = rewriteFooterCredit(body);
+  body = rewriteContactFormAction(body);
   body = fillAltText(body);
   body = localizeAssetUrls(body);
 
