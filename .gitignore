@@ -1,0 +1,62 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# cloudflare / opennext
+/.open-next/
+/.wrangler/
+.dev.vars
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# JetBrains IDE
+.idea/
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# ---- clauwi.pl specific ----
+# Legacy WordPress files kept locally for reference only — NEVER commit.
+# wp-config.php contains DB credentials + injected malware; old_wordpress_site
+# is a large legacy tree (incl. a multi-GB debug.log).
+wp-config.php
+old_wordpress_site/
+
+# local data dumps / migration artifacts — contain credentials or advisor PII,
+# regenerated locally by the import scripts. Never commit.
+migration/dumps/
+*.dump.sql
+advisors_raw.json
+advisors_clean.json
+advisors_import.sql
+
+# local visual-comparison screenshots (regenerable)
+screenshots/
