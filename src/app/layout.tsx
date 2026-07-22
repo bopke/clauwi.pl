@@ -28,6 +28,14 @@ export const metadata: Metadata = {
     template: "%s — ClauWi®",
   },
   description: DEFAULT_DESCRIPTION,
+  icons: {
+    // Same favicon as the original WordPress site (cropped-logo_clauwi).
+    icon: [
+      { url: "/brand/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/brand/icon-180.png", sizes: "180x180", type: "image/png" }],
+  },
   openGraph: {
     siteName: SITE_NAME,
     title: DEFAULT_TITLE,
