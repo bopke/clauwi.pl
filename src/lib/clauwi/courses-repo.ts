@@ -74,7 +74,9 @@ export async function getBookedCount(courseId: string): Promise<number> {
 /** Tworzy zgłoszenie, odrzuca jeśli przekroczy limit miejsc (sprawdzane atomowo w D1). */
 export async function createBooking(
   draft: Omit<CourseBooking, "id" | "status" | "createdAt">,
-): Promise<{ ok: true; booking: CourseBooking } | { ok: false; reason: "full" | "not-found" }> {
+): Promise<
+  { ok: true; booking: CourseBooking; course: Course } | { ok: false; reason: "full" | "not-found" }
+> {
   const DB = await db();
   const course = await getCourseById(draft.courseId);
   if (!course) return { ok: false, reason: "not-found" };
@@ -88,7 +90,7 @@ export async function createBooking(
   ).bind(
     booking.id, booking.courseId, booking.imie, booking.nazwisko, booking.email, booking.telefon, booking.liczbaOsob, booking.wiadomosc, booking.status,
   ).run();
-  return { ok: true, booking };
+  return { ok: true, booking, course };
 }
 
 // ----- Admin CRUD (courses) -----
