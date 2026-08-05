@@ -1,0 +1,21 @@
+/* Brand-color overrides for Splide's default theme (imported alongside this
+   in testimonials-carousel.tsx) — this carousel has no Kadence wrapper
+   classes around it, so it can't rely on the legacy base.css Splide rules
+   the blog carousel benefits from; needs its own complete styling. */
+#testimonials-carousel-slot .splide__arrow {
+  background: #cb8c7c;
+  opacity: 1;
+}
+#testimonials-carousel-slot .splide__arrow svg {
+  fill: #fff;
+}
+#testimonials-carousel-slot .splide__arrow:hover svg {
+  fill: #fff;
+}
+#testimonials-carousel-slot .splide__pagination__page {
+  background: #dfc0c0;
+}
+#testimonials-carousel-slot .splide__pagination__page.is-active {
+  background: #cb8c7c;
+  transform: scale(1.2);
+}

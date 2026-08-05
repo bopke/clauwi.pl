@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CalendarDays, MapPin, Users, Banknote, ArrowRight, CalendarX } from "lucide-react";
 import { SiteHeader } from "@/components/clauwi/site-header";
 import { SiteFooter } from "@/components/clauwi/site-footer";
 import { JsonLd } from "@/components/clauwi/json-ld";
@@ -60,38 +61,65 @@ export default async function KalendarzWydarzenPage() {
       {courses.length > 0 && <JsonLd data={itemListJsonLd(courses)} />}
       <SiteHeader />
       <main className="flex-1">
-        <section className="mx-auto max-w-5xl px-4 py-16">
+        <section className="mx-auto max-w-6xl px-4 py-16">
           <h1 className="text-center font-heading text-4xl font-medium uppercase text-brand md:text-5xl">
             Kalendarz kursów
           </h1>
-          <p className="mt-4 text-center text-ink/75">
+          <div className="mx-auto mt-4 h-px w-16 bg-brand/40" />
+          <p className="mt-6 text-center text-ink/75">
             Nadchodzące kursy i szkolenia — wybierz termin i zapisz się.
           </p>
 
           {withCounts.length === 0 ? (
-            <p className="mt-16 text-center text-ink/60">Brak zaplanowanych kursów w tej chwili. Zapraszamy wkrótce!</p>
+            <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-3 rounded-[1px] border border-border px-8 py-12 text-center">
+              <CalendarX className="size-8 text-brand/60" />
+              <p className="text-ink/70">Brak zaplanowanych kursów w tej chwili. Zapraszamy wkrótce!</p>
+              <Link href="/kontakt" className="text-sm text-brand underline decoration-brand/40 underline-offset-2 hover:text-ink">
+                Napisz do nas, aby zapytać o najbliższy termin
+              </Link>
+            </div>
           ) : (
-            <ul className="mt-12 space-y-4">
+            <ul className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {withCounts.map(({ course, booked }) => {
                 const left = CourseUtil.spotsLeft(course, booked);
+                const soldOut = left === 0;
+                const lowSpots = !soldOut && left <= 3;
                 return (
                   <li key={course.id}>
                     <Link
                       href={`/kalendarz-wydarzen/${course.id}`}
-                      className="flex flex-col gap-2 rounded-[1px] border border-border p-6 transition-colors hover:border-brand sm:flex-row sm:items-center sm:justify-between"
+                      className="group flex h-full flex-col rounded-[1px] border border-border p-6 transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-lg"
                     >
-                      <div>
-                        <span className="text-xs font-semibold uppercase tracking-wide text-brand">{course.typ}</span>
-                        <h2 className="font-heading text-xl font-medium text-ink">{course.nazwa}</h2>
-                        <p className="mt-1 text-sm text-ink/60">
-                          {formatRange(course.dataOd, course.dataDo)} · {course.miejsce}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-heading text-lg text-ink">{course.cena} zł</p>
-                        <p className={`text-sm ${left === 0 ? "text-red-600" : "text-ink/60"}`}>
-                          {left === 0 ? "Brak miejsc" : `Wolnych miejsc: ${left}`}
-                        </p>
+                      <span className="inline-block w-fit rounded-[1px] border border-brand/30 bg-brand/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-brand">
+                        {course.typ}
+                      </span>
+                      <h2 className="mt-3 font-heading text-xl font-medium text-ink">{course.nazwa}</h2>
+
+                      <dl className="mt-4 space-y-2 text-sm text-ink/70">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="size-4 shrink-0 text-brand" />
+                          <span>{formatRange(course.dataOd, course.dataDo)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="size-4 shrink-0 text-brand" />
+                          <span>{course.miejsce}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="size-4 shrink-0 text-brand" />
+                          <span className={soldOut ? "font-medium text-red-600" : lowSpots ? "font-medium text-brand" : ""}>
+                            {soldOut ? "Brak miejsc" : `Wolnych miejsc: ${left}`}
+                          </span>
+                        </div>
+                      </dl>
+
+                      <div className="mt-6 flex flex-1 items-end justify-between border-t border-border pt-4">
+                        <span className="flex items-center gap-1.5 font-heading text-lg text-ink">
+                          <Banknote className="size-4 text-brand" />
+                          {course.cena} zł
+                        </span>
+                        <span className="flex items-center gap-1 text-sm font-medium uppercase tracking-wide text-brand transition-transform group-hover:translate-x-0.5">
+                          Zapisz się <ArrowRight className="size-4" />
+                        </span>
                       </div>
                     </Link>
                   </li>

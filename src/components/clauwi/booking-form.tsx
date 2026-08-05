@@ -1,14 +1,75 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { submitBookingAction, type BookingFormResult } from "@/app/(public)/kalendarz-wydarzen/actions";
+import { TURNSTILE_SITEKEY } from "@/lib/clauwi/turnstile-sitekey";
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (container: HTMLElement, options: { sitekey: string; action?: string }) => string;
+      reset: (widgetId?: string) => void;
+      remove: (widgetId?: string) => void;
+    };
+  }
+}
 
 const INITIAL: BookingFormResult = { ok: false, error: "" };
 
 export function BookingForm({ courseId, spotsLeft }: { courseId: string; spotsLeft: number }) {
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | undefined>(undefined);
   const [state, formAction, pending] = useActionState(async (_prev: BookingFormResult, formData: FormData) => {
     return submitBookingAction(formData);
   }, INITIAL);
+
+  // Turnstile's implicit `data-sitekey` auto-render only scans the DOM once,
+  // when its script first loads — it never picks up this form when it mounts
+  // later (e.g. inside the @modal overlay, added well after that initial
+  // scan). Render explicitly here instead, every time this component mounts,
+  // polling briefly in case the script (loaded lazily) isn't ready yet.
+  useEffect(() => {
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | undefined;
+
+    const render = () => {
+      if (cancelled || !turnstileContainerRef.current || widgetIdRef.current) return;
+      widgetIdRef.current = window.turnstile?.render(turnstileContainerRef.current, {
+        sitekey: TURNSTILE_SITEKEY,
+        action: "turnstile-spin-v1",
+      });
+    };
+
+    if (window.turnstile) {
+      render();
+    } else {
+      interval = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(interval);
+          render();
+        }
+      }, 100);
+    }
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+      // Reset the ref (not just remove the widget) so a remount — e.g. React
+      // Strict Mode's dev-only double-invoke, or this form mounting again
+      // later — re-renders instead of seeing a stale id and skipping.
+      if (widgetIdRef.current) {
+        window.turnstile?.remove(widgetIdRef.current);
+        widgetIdRef.current = undefined;
+      }
+    };
+  }, []);
+
+  // This form doesn't reload the page on error (useActionState keeps it
+  // mounted), so a failed attempt would otherwise leave a stale, already-
+  // consumed Turnstile token behind — reset the widget so retrying works.
+  useEffect(() => {
+    if (!state.ok && state.error) window.turnstile?.reset(widgetIdRef.current);
+  }, [state]);
 
   if (spotsLeft === 0) {
     return <p className="rounded-[1px] border border-red-200 bg-red-50 p-6 text-center text-red-700">Brak wolnych miejsc na ten kurs.</p>;
@@ -38,6 +99,7 @@ export function BookingForm({ courseId, spotsLeft }: { courseId: string; spotsLe
         <input name="liczbaOsob" type="number" min={1} max={Math.min(10, spotsLeft)} defaultValue={1} className="w-20 rounded-[1px] border border-border px-3 py-2 outline-none focus:border-brand" />
       </label>
       <textarea name="wiadomosc" rows={4} placeholder="Wiadomość (opcjonalnie)" className="w-full rounded-[1px] border border-border px-4 py-3 outline-none focus:border-brand" />
+      <div ref={turnstileContainerRef} className="turnstile-widget" />
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
       <button
         type="submit"
