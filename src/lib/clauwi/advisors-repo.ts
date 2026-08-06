@@ -79,9 +79,23 @@ export async function listPublicAdvisors(p: PublicPageParams): Promise<PublicPag
   const totalRow = await DB.prepare(`SELECT COUNT(*) AS n FROM advisors WHERE ${whereSql}`).bind(...binds).first<{ n: number }>();
   const total = totalRow?.n ?? 0;
 
+  // Priority ordering (applies regardless of name/city sort): Izabela Banach
+  // always first if she's in the list, then by certification tier
+  // (Certyfikat > Kurs zaawansowany > Kurs podstawowy > anything else, e.g.
+  // a country name for zagranica rows) — matches "prowadzącą wynika z
+  // poziomu" ask from the client, not just alphabetical.
+  const PRIORITY = `
+    CASE WHEN nazwa = 'Izabela Banach' THEN 0 ELSE 1 END,
+    CASE
+      WHEN poziom LIKE 'Certyfikat%' THEN 0
+      WHEN poziom LIKE 'Kurs zaawansowany%' THEN 1
+      WHEN poziom LIKE 'Kurs podstawowy%' THEN 2
+      ELSE 3
+    END
+  `;
   const order = p.sort === "miejscowosc"
-    ? "miejscowosc COLLATE NOCASE, nazwa COLLATE NOCASE, id"
-    : "nazwa COLLATE NOCASE, id";
+    ? `${PRIORITY}, miejscowosc COLLATE NOCASE, nazwa COLLATE NOCASE, id`
+    : `${PRIORITY}, nazwa COLLATE NOCASE, id`;
 
   const sql = `SELECT * FROM advisors WHERE ${whereSql} ORDER BY ${order} LIMIT ? OFFSET ?`;
   const { results } = await DB.prepare(sql).bind(...binds, p.limit, p.offset).all<Row>();
