@@ -19,7 +19,9 @@ export function AdvisorSearchTable({ items }: { items: Advisor[] }) {
   const filtered = useMemo(() => {
     const q = normalize(query.trim());
     if (!q) return items;
-    return items.filter((a) => normalize(a.nazwa).includes(q) || normalize(a.miejscowosc).includes(q));
+    return items.filter(
+      (a) => normalize(a.nazwa).includes(q) || normalize(a.miejscowosc).includes(q) || normalize(a.oferta).includes(q)
+    );
   }, [items, query]);
 
   return (
@@ -29,7 +31,7 @@ export function AdvisorSearchTable({ items }: { items: Advisor[] }) {
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Szukaj po imieniu i nazwisku lub miejscowości…"
+          placeholder="Szukaj po imieniu i nazwisku, miejscowości lub ofercie…"
           className="w-full rounded-[1px] border border-border px-4 py-2 text-sm text-ink placeholder:text-ink/40 focus:border-brand focus:outline-none"
         />
       </div>
