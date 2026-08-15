@@ -30,8 +30,13 @@ function FacebookIcon({ className }: { className?: string }) {
 export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  // Pick the single most specific nav item matching the current path (e.g.
+  // on /o-nas/lista-doradcow, "Doradcy" wins over the shorter "O nas" prefix)
+  // instead of highlighting every href that happens to be a prefix.
+  const activeHref = NAV
+    .filter((item) => (item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+  const isActive = (href: string) => href === activeHref;
 
   // Lock background scroll while the drawer is open — same effect as the
   // legacy drawer's body-class toggle.
