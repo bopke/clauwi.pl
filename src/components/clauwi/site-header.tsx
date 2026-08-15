@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Mail, Phone, Search, Menu, X } from "lucide-react";
 import { NAV, CONTACT } from "@/lib/clauwi/site";
 import { cn } from "@/lib/utils";
+
+// Colors lifted 1:1 from the legacy Kadence drawer (src/legacy/base.css /
+// --global-palette1/8) so the mobile menu matches the homepage exactly.
+const DRAWER_BG = "#090c10";
+const DRAWER_TEXT = "#F7FAFC";
+const DRAWER_ACTIVE = "#3182CE";
 
 function FacebookIcon({ className }: { className?: string }) {
   return (
@@ -26,6 +32,15 @@ export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
+
+  // Lock background scroll while the drawer is open — same effect as the
+  // legacy drawer's body-class toggle.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
   return (
     <header
@@ -66,11 +81,11 @@ export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
             <Search className="size-5" />
           </button>
 
-          {/* Mobile: hamburger left-aligned block */}
+          {/* Mobile: hamburger right-aligned block */}
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="absolute left-0 inline-flex p-2 text-ink lg:hidden"
+            className="absolute right-0 inline-flex p-2 text-ink lg:hidden"
             aria-label={open ? "Zamknij menu" : "Otwórz menu"}
             aria-expanded={open}
           >
@@ -92,27 +107,56 @@ export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
         </div>
       </div>
 
-      {/* Mobile nav dropdown */}
-      {open && (
-        <nav className="border-t border-white/30 bg-[#f4b4a7] lg:hidden" aria-label="Menu mobilne">
-          <ul className="mx-auto max-w-6xl px-4 py-2">
-            {NAV.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "block px-2 py-3 text-sm font-semibold uppercase tracking-wide text-ink/90 hover:text-white",
-                    isActive(item.href) && "underline decoration-2 underline-offset-4",
-                  )}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      {/* Mobile full-screen drawer — matches the homepage's legacy Kadence drawer. */}
+      <div
+        className={cn(
+          "fixed inset-0 z-[100000] lg:hidden",
+          open ? "" : "pointer-events-none",
+        )}
+        aria-hidden={!open}
+      >
+        <div
+          className={cn(
+            "absolute inset-0 bg-black/40 transition-opacity duration-200 ease-in-out",
+            open ? "opacity-100" : "opacity-0",
+          )}
+          onClick={() => setOpen(false)}
+        />
+        <div
+          className={cn(
+            "absolute inset-y-0 right-0 flex w-full max-w-[90%] flex-col overflow-auto shadow-[0_0_2rem_0_rgba(0,0,0,0.1)] transition-transform duration-300 ease-[cubic-bezier(0.77,0.2,0.05,1)]",
+            open ? "translate-x-0" : "translate-x-full",
+          )}
+          style={{ background: DRAWER_BG, color: DRAWER_TEXT }}
+        >
+          <div className="flex min-h-[calc(1.2em+24px)] justify-end px-6">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Zamknij menu"
+              className="flex items-center p-[0.6em] text-inherit"
+            >
+              <X className="size-6" />
+            </button>
+          </div>
+          <nav className="px-6 pb-6" aria-label="Menu mobilne">
+            <ul>
+              {NAV.map((item) => (
+                <li key={item.href} className="border-b border-white/10">
+                  <Link
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className="block w-full py-[0.6em] text-sm"
+                    style={isActive(item.href) ? { color: DRAWER_ACTIVE } : undefined}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+      </div>
     </header>
   );
 }
