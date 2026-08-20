@@ -38,6 +38,34 @@ export type EmailContent = {
 
 export type RenderedEmail = { subject: string; html: string; text: string };
 
+/**
+ * Works out which host the e-mail's logo and links should point at.
+ *
+ * Priority: an explicit EMAIL_BASE_URL binding, then the host the request
+ * actually came in on, and only then the production domain. The middle step
+ * matters: until the DNS cutover, clauwi.pl still serves the old WordPress
+ * site and 404s on /brand/email-logo.png, so a build deployed to
+ * staging.clauwi.pl has to advertise itself, not the domain it will one day
+ * own. After the cutover this keeps working with no config change.
+ *
+ * Pure so it can be tested without a request — see scripts/preview-emails.ts.
+ */
+export function resolveEmailBaseUrl(args: {
+  configured?: string;
+  host?: string | null;
+  protocol?: string | null;
+}): string {
+  if (args.configured) return args.configured.replace(/\/$/, "");
+
+  const host = args.host?.trim();
+  // A localhost URL is useless in someone's inbox — fall back to production.
+  if (host && !/^(localhost|127\.0\.0\.1|\[::1\])(:|$)/.test(host)) {
+    return `${args.protocol ?? "https"}://${host}`;
+  }
+
+  return SITE.url;
+}
+
 export type RenderOptions = {
   /**
    * Base URL for links and for the logo. Defaults to the production domain,
