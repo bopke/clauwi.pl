@@ -60,3 +60,4 @@ advisors_import.sql
 
 # local visual-comparison screenshots (regenerable)
 screenshots/
+.email-previews/

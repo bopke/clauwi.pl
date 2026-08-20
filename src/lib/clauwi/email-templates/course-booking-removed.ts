@@ -6,23 +6,29 @@
 // attachment uses METHOD:CANCEL so the date leaves their calendar too.
 //
 // Sending is not automatic — the panel asks when deleting.
-// Edit the wording here; src/lib/clauwi/brevo.ts only sends it.
+// Edit the strings below; the frame comes from layout.ts.
+
+import { EMAIL_STYLES as S, detailsBox, type EmailContent } from "./layout";
 
 export function courseBookingRemovedEmail(params: {
   customerName: string;
   courseName: string;
   location: string;
   dateTime: string;
-}) {
+}): EmailContent {
   const { customerName, courseName, location, dateTime } = params;
   return {
     subject: `${courseName} - zgłoszenie usunięte`,
-    html: `
-<p>Dzień dobry <strong>${customerName}</strong>,</p>
-<p>Informujemy, że Twoje zgłoszenie na szkolenie <strong>${courseName}</strong> (${dateTime}, ${location}) zostało usunięte z listy uczestników.</p>
-<p>Termin został też odwołany w Twoim kalendarzu. Jeśli to pomyłka albo chcesz zapisać się ponownie — napisz do nas, chętnie pomożemy.</p>
-<p>Pozdrawiamy,</p>
-<p><strong>ClauWi®</strong></p>
-`.trim(),
+    preheader: "Twoje zgłoszenie zostało usunięte z listy uczestników.",
+    heading: "Zgłoszenie usunięte",
+    body: `
+<p style="${S.p}">Dzień dobry <strong>${customerName}</strong>,</p>
+<p style="${S.p}">Informujemy, że Twoje zgłoszenie na szkolenie <strong>${courseName}</strong> zostało usunięte z listy uczestników.</p>
+${detailsBox([
+  { label: "Termin", value: dateTime },
+  { label: "Miejsce", value: location },
+])}
+<p style="${S.p}">Termin został też odwołany w Twoim kalendarzu. Jeśli to pomyłka albo chcesz zapisać się ponownie — napisz do nas, chętnie pomożemy.</p>
+<p style="${S.p}">Pozdrawiamy,<br><strong>ClauWi®</strong></p>`,
   };
 }

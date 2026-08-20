@@ -5,7 +5,10 @@
 // booking itself). Sending is NOT automatic: the panel asks every time
 // whether to notify the participant — see
 // src/components/clauwi/admin/CoursesTab.tsx.
-// Edit the wording here; src/lib/clauwi/brevo.ts only sends it.
+//
+// Edit the strings below; the frame comes from layout.ts.
+
+import { EMAIL_STYLES as S, detailsBox, type EmailContent } from "./layout";
 
 type StatusEmailParams = {
   customerName: string;
@@ -15,32 +18,38 @@ type StatusEmailParams = {
   dateTime: string;
 };
 
-export function courseBookingConfirmedEmail(params: StatusEmailParams) {
+export function courseBookingConfirmedEmail(params: StatusEmailParams): EmailContent {
   const { customerName, courseName, location, dateTime } = params;
   return {
     subject: `${courseName} - potwierdzenie udziału`,
-    html: `
-<p>Dzień dobry <strong>${customerName}</strong>,</p>
-<p>Potwierdzamy Twój udział w szkoleniu <strong>${courseName}</strong>.</p>
-<p><strong>Termin:</strong> ${dateTime}<br/>
-<strong>Miejsce:</strong> ${location}</p>
-<p>W załączniku znajdziesz plik z terminem, który możesz dodać do swojego kalendarza.</p>
-<p>Do zobaczenia,</p>
-<p><strong>ClauWi®</strong></p>
-`.trim(),
+    preheader: `Twój udział jest potwierdzony. Termin: ${dateTime}.`,
+    heading: "Udział potwierdzony",
+    body: `
+<p style="${S.p}">Dzień dobry <strong>${customerName}</strong>,</p>
+<p style="${S.p}">Potwierdzamy Twój udział w szkoleniu <strong>${courseName}</strong>.</p>
+${detailsBox([
+  { label: "Termin", value: dateTime },
+  { label: "Miejsce", value: location },
+])}
+<p style="${S.p}">W załączniku znajdziesz plik z terminem, który możesz dodać do swojego kalendarza.</p>
+<p style="${S.p}">Do zobaczenia,<br><strong>ClauWi®</strong></p>`,
   };
 }
 
-export function courseBookingCancelledEmail(params: StatusEmailParams) {
+export function courseBookingCancelledEmail(params: StatusEmailParams): EmailContent {
   const { customerName, courseName, location, dateTime } = params;
   return {
     subject: `${courseName} - anulowanie zgłoszenia`,
-    html: `
-<p>Dzień dobry <strong>${customerName}</strong>,</p>
-<p>Informujemy, że Twoje zgłoszenie na szkolenie <strong>${courseName}</strong> (${dateTime}, ${location}) zostało anulowane.</p>
-<p>Jeśli to pomyłka albo chcesz zapisać się na inny termin — napisz do nas, chętnie pomożemy.</p>
-<p>Pozdrawiamy,</p>
-<p><strong>ClauWi®</strong></p>
-`.trim(),
+    preheader: "Twoje zgłoszenie zostało anulowane.",
+    heading: "Zgłoszenie anulowane",
+    body: `
+<p style="${S.p}">Dzień dobry <strong>${customerName}</strong>,</p>
+<p style="${S.p}">Informujemy, że Twoje zgłoszenie na szkolenie <strong>${courseName}</strong> zostało anulowane.</p>
+${detailsBox([
+  { label: "Termin", value: dateTime },
+  { label: "Miejsce", value: location },
+])}
+<p style="${S.p}">Jeśli to pomyłka albo chcesz zapisać się na inny termin — napisz do nas, chętnie pomożemy.</p>
+<p style="${S.p}">Pozdrawiamy,<br><strong>ClauWi®</strong></p>`,
   };
 }
