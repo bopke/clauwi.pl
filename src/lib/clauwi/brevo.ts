@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { courseBookingConfirmationEmail } from "./email-templates/course-booking-confirmation";
 import { courseBookingOrganizerEmail } from "./email-templates/course-booking-organizer-notification";
@@ -5,7 +6,7 @@ import { courseBookingCancelledEmail, courseBookingConfirmedEmail } from "./emai
 import { courseBookingUpdatedEmail, type BookingChange } from "./email-templates/course-booking-updated";
 import { courseBookingRemovedEmail } from "./email-templates/course-booking-removed";
 import { contactFormEmail } from "./email-templates/contact-form";
-import { renderEmail, type EmailContent } from "./email-templates/layout";
+import { renderEmail, resolveEmailBaseUrl, type EmailContent } from "./email-templates/layout";
 import { buildCourseIcs, icsFileName, type IcsMethod } from "./ics";
 import { formatRange } from "./time";
 import type { Course, CourseBooking } from "./courses";
@@ -82,9 +83,20 @@ async function sendTemplate(args: {
   attachments?: Attachment[];
 }): Promise<void> {
   // Until the domain cutover the logo has to be fetched from wherever this
-  // build is actually deployed — clauwi.pl is still the old WordPress site.
+  // build is actually deployed — clauwi.pl is still the old WordPress site —
+  // so fall back to the request's own host rather than the future domain.
   const { env } = await getCloudflareContext({ async: true });
-  const { subject, html, text } = renderEmail(args.content, { baseUrl: env.EMAIL_BASE_URL });
+  let host: string | null = null;
+  let protocol: string | null = null;
+  try {
+    const h = await headers();
+    host = h.get("host");
+    protocol = h.get("x-forwarded-proto");
+  } catch {
+    // Not in a request scope (e.g. a script) — the defaults below cover it.
+  }
+  const baseUrl = resolveEmailBaseUrl({ configured: env.EMAIL_BASE_URL, host, protocol });
+  const { subject, html, text } = renderEmail(args.content, { baseUrl });
   await sendViaBrevo({
     to: args.to,
     toName: args.toName,

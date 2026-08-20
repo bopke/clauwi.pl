@@ -11,6 +11,37 @@
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
 	},
+	/**
+   * Plain-text environment variables.
+   *
+   * These MUST live here rather than being typed into the Cloudflare
+   * dashboard: for non-secret vars this file is authoritative, so every
+   * deploy replaces the Worker's variables with exactly what it declares.
+   * Values set only in the dashboard are dropped by the next deploy — that is
+   * how BREVO_SENDER_EMAIL / BREVO_SENDER_NAME / CONTACT_FORM_TO /
+   * COURSE_ORGANIZER_EMAIL disappeared on 2026-08-20 and broke e-mail on
+   * staging. Recovered here from version eefdae6e.
+   *
+   * Anything genuinely secret (BREVO_API_KEY, AUTH_*, TURNSTILE_SECRET_KEY)
+   * stays a `wrangler secret` — secrets are NOT touched by deploys.
+   *
+   * Values below were read back from the live Worker (version e7582c60,
+   * 2026-08-20 20:02 UTC) so config and deployment now agree.
+   */
+	"vars": {
+		"BREVO_SENDER_EMAIL": "kontakt@clauwi.pl",
+		"BREVO_SENDER_NAME": "ClauWi®",
+		// NOTE: both recipients currently point at the developer's own inbox
+		// for end-to-end e-mail testing. Swap to the client's real addresses
+		// before handover (they were kontakt@bopke.dev / kontakt2@bopke.dev
+		// earlier, and the site's own contact address is iza@naturalnamama.pl).
+		"CONTACT_FORM_TO": "bobekrobal@gmail.com",
+		"COURSE_ORGANIZER_EMAIL": "bobekrobal@gmail.com",
+		// Only needed while the app lives on staging. The code falls back to
+		// the request's own host, so this can simply be deleted after the
+		// clauwi.pl cutover.
+		"EMAIL_BASE_URL": "https://staging.clauwi.pl"
+	},
 	"observability": {
 		"enabled": true
 	},
