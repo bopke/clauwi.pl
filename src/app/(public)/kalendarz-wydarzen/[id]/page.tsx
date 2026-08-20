@@ -9,19 +9,9 @@ import { CourseDetailContent } from "@/components/clauwi/course-detail-content";
 import { getCourseById, getBookedCount } from "@/lib/clauwi/courses-repo";
 import { CourseUtil } from "@/lib/clauwi/courses";
 import type { Course } from "@/lib/clauwi/courses";
+import { formatRange, localSqlToDate } from "@/lib/clauwi/time";
 
 export const dynamic = "force-dynamic";
-
-function formatRange(od: string, doo: string) {
-  const a = new Date(od.replace(" ", "T"));
-  const b = new Date(doo.replace(" ", "T"));
-  const fmtDate = (d: Date) => d.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
-  const fmtTime = (d: Date) => d.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" });
-  const sameDay = a.toDateString() === b.toDateString();
-  return sameDay
-    ? `${fmtDate(a)}, ${fmtTime(a)}–${fmtTime(b)}`
-    : `${fmtDate(a)} – ${fmtDate(b)}`;
-}
 
 export async function generateMetadata({
   params,
@@ -31,8 +21,8 @@ export async function generateMetadata({
   const { id } = await params;
   const course = await getCourseById(id);
   if (!course) return { title: "Kurs" };
-  const title = course.nazwa;
-  const description = `${course.typ} — ${formatRange(course.dataOd, course.dataDo)}, ${course.miejsce}. Cena: ${course.cena} zł. Zapisz się na kurs ClauWi®.`;
+  const title = course.name;
+  const description = `${course.type} — ${formatRange(course.startsAt, course.endsAt, { withTime: true })}, ${course.location}. Cena: ${course.price} zł. Zapisz się na kurs ClauWi®.`;
   const url = `/kalendarz-wydarzen/${id}`;
   return {
     title,
@@ -47,21 +37,21 @@ function courseJsonLd(course: Course) {
   return {
     "@context": "https://schema.org",
     "@type": "Course",
-    name: course.nazwa,
-    description: course.opis || `${course.typ} — kurs Szkoły Noszenia ClauWi®.`,
+    name: course.name,
+    description: course.description || `${course.type} — kurs Szkoły Noszenia ClauWi®.`,
     provider: { "@type": "EducationalOrganization", name: "ClauWi®", sameAs: "https://clauwi.pl" },
     hasCourseInstance: {
       "@type": "CourseInstance",
-      courseMode: course.miejsce.toLowerCase().includes("online") ? "online" : "onsite",
-      startDate: course.dataOd.replace(" ", "T"),
-      endDate: course.dataDo.replace(" ", "T"),
-      location: course.miejsce.toLowerCase().includes("online")
+      courseMode: course.location.toLowerCase().includes("online") ? "online" : "onsite",
+      startDate: localSqlToDate(course.startsAt).toISOString(),
+      endDate: localSqlToDate(course.endsAt).toISOString(),
+      location: course.location.toLowerCase().includes("online")
         ? undefined
-        : { "@type": "Place", name: course.miejsce },
+        : { "@type": "Place", name: course.location },
     },
     offers: {
       "@type": "Offer",
-      price: course.cena,
+      price: course.price,
       priceCurrency: "PLN",
       availability: "https://schema.org/InStock",
       url: `https://clauwi.pl/kalendarz-wydarzen/${course.id}`,
@@ -76,7 +66,7 @@ export default async function CourseDetailPage({
 }) {
   const { id } = await params;
   const course = await getCourseById(id);
-  if (!course || !course.aktywny) notFound();
+  if (!course || !course.active) notFound();
 
   const booked = await getBookedCount(course.id);
   const left = CourseUtil.spotsLeft(course, booked);
@@ -88,7 +78,7 @@ export default async function CourseDetailPage({
         data={breadcrumbListJsonLd([
           { name: "Strona główna", url: "/" },
           { name: "Kursy", url: "/kalendarz-wydarzen" },
-          { name: course.nazwa, url: `/kalendarz-wydarzen/${course.id}` },
+          { name: course.name, url: `/kalendarz-wydarzen/${course.id}` },
         ])}
       />
       <SiteHeader />

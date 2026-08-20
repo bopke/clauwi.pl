@@ -1,44 +1,65 @@
-// Model i pomocnicy kalendarza kursów ClauWi®.
-// Dane przechowywane są w D1 (zob. courses-repo.ts) — ten moduł zawiera tylko
-// typy i metadane.
+// Model and helpers for the ClauWi® course calendar.
+// The data lives in D1 (see courses-repo.ts) — this module only holds types
+// and metadata.
 
 export type Course = {
   id: string;
-  nazwa: string;
-  typ: string; // np. "Kurs podstawowy", "Kurs zaawansowany", "Refresh", "Konferencja"
-  miejsce: string; // miasto albo "Online"
-  opis: string;
-  cena: number; // PLN
-  limitMiejsc: number;
-  dataOd: string; // ISO-ish "YYYY-MM-DD HH:MM:SS"
-  dataDo: string;
-  aktywny: boolean;
+  name: string;
+  type: string; // e.g. "Kurs podstawowy", "Kurs zaawansowany", "Refresh", "Konferencja"
+  location: string; // a city or "Online"
+  description: string;
+  price: number; // PLN
+  capacity: number;
+  startsAt: string; // local Warsaw wall clock, "YYYY-MM-DD HH:MM:SS" — see time.ts
+  endsAt: string;
+  active: boolean;
 };
 
-// Podpowiedzi typu w formularzu admina — nie wymuszamy jednej z tych wartości,
-// dane źródłowe pokazują też inne warianty ("Inne").
-export const TYP_SUGGESTIONS = ["Kurs podstawowy", "Kurs zaawansowany", "Refresh", "Konferencja", "Wsparcie na starcie"];
+// Quick picks for the admin form. These are display values, not identifiers,
+// so they stay Polish — and the form does not restrict input to them, because
+// the source data shows other variants too.
+export const TYPE_SUGGESTIONS = ["Kurs podstawowy", "Kurs zaawansowany", "Refresh", "Konferencja", "Wsparcie na starcie"];
 
-export type CourseBookingStatus = "nowe" | "potwierdzone" | "anulowane";
+export type CourseBookingStatus = "new" | "confirmed" | "cancelled";
 
 export type CourseBooking = {
   id: string;
   courseId: string;
-  imie: string;
-  nazwisko: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  telefon: string;
-  liczbaOsob: number;
-  wiadomosc: string;
+  phone: string;
+  seats: number;
+  message: string;
+  /** Consent to process personal data — required when booking (GDPR). */
+  gdprConsent: boolean;
   status: CourseBookingStatus;
+  /**
+   * Bumped on every change to the booking — feeds the SEQUENCE field of the
+   * .ics attachment so the participant's calendar accepts the update.
+   */
+  version: number;
   createdAt: string;
 };
 
+/** The booking fields an administrator can edit in the panel. */
+export type CourseBookingEdit = Pick<
+  CourseBooking,
+  "firstName" | "lastName" | "email" | "phone" | "seats" | "message"
+>;
+
+/** Polish labels for those fields — used in the panel and in the "what changed" email. */
+export const BOOKING_FIELD_LABELS: Record<keyof CourseBookingEdit, string> = {
+  firstName: "Imię",
+  lastName: "Nazwisko",
+  email: "E-mail",
+  phone: "Telefon",
+  seats: "Liczba osób",
+  message: "Wiadomość",
+};
+
 export const CourseUtil = {
-  isPast(c: Pick<Course, "dataDo">): boolean {
-    return new Date(c.dataDo.replace(" ", "T")).getTime() < Date.now();
-  },
   spotsLeft(course: Course, booked: number): number {
-    return Math.max(0, course.limitMiejsc - booked);
+    return Math.max(0, course.capacity - booked);
   },
 };

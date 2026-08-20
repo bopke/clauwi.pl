@@ -13,7 +13,7 @@ export default async function CourseDetailModal({
 }) {
   const { id } = await params;
   const course = await getCourseById(id);
-  if (!course || !course.aktywny) notFound();
+  if (!course || !course.active) notFound();
 
   const booked = await getBookedCount(course.id);
   const left = CourseUtil.spotsLeft(course, booked);

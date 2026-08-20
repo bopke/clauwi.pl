@@ -87,18 +87,28 @@ export function BookingForm({ courseId, spotsLeft }: { courseId: string; spotsLe
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="courseId" value={courseId} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <input name="imie" required placeholder="Imię" className="w-full rounded-[1px] border border-border px-4 py-3 outline-none focus:border-brand" />
-        <input name="nazwisko" required placeholder="Nazwisko" className="w-full rounded-[1px] border border-border px-4 py-3 outline-none focus:border-brand" />
+        <input name="firstName" required placeholder="Imię" className="w-full rounded-[1px] border border-border px-4 py-3 outline-none focus:border-brand" />
+        <input name="lastName" required placeholder="Nazwisko" className="w-full rounded-[1px] border border-border px-4 py-3 outline-none focus:border-brand" />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <input name="email" type="email" required placeholder="E-mail" className="w-full rounded-[1px] border border-border px-4 py-3 outline-none focus:border-brand" />
-        <input name="telefon" placeholder="Telefon" className="w-full rounded-[1px] border border-border px-4 py-3 outline-none focus:border-brand" />
+        <input name="phone" placeholder="Telefon" className="w-full rounded-[1px] border border-border px-4 py-3 outline-none focus:border-brand" />
       </div>
       <label className="flex items-center gap-2 text-sm text-ink/70">
         Liczba osób
-        <input name="liczbaOsob" type="number" min={1} max={Math.min(10, spotsLeft)} defaultValue={1} className="w-20 rounded-[1px] border border-border px-3 py-2 outline-none focus:border-brand" />
+        <input name="seats" type="number" min={1} max={Math.min(10, spotsLeft)} defaultValue={1} className="w-20 rounded-[1px] border border-border px-3 py-2 outline-none focus:border-brand" />
       </label>
-      <textarea name="wiadomosc" rows={4} placeholder="Wiadomość (opcjonalnie)" className="w-full rounded-[1px] border border-border px-4 py-3 outline-none focus:border-brand" />
+      <textarea name="message" rows={4} placeholder="Wiadomość (opcjonalnie)" className="w-full rounded-[1px] border border-border px-4 py-3 outline-none focus:border-brand" />
+      <label className="flex items-start gap-3 text-sm text-ink/70">
+        <input type="checkbox" name="gdprConsent" required value="1" className="mt-1 size-4 shrink-0 accent-[#cb8c7c]" />
+        <span>
+          Wyrażam zgodę na przetwarzanie moich danych zgodnie z{" "}
+          <a href="/polityka-prywatnosci" target="_blank" rel="noopener noreferrer" className="text-brand underline decoration-brand/40 underline-offset-2">
+            polityką prywatności
+          </a>
+          .
+        </span>
+      </label>
       <div ref={turnstileContainerRef} className="turnstile-widget" />
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
       <button

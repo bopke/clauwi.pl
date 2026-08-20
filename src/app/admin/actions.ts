@@ -6,9 +6,13 @@ import { adminListAdvisors, createAdvisor, getAdvisorById, removeAdvisor, update
 import type { AllowEntry, Advisor } from "@/lib/clauwi/advisors";
 import {
   adminListCourses, createCourse, getCourseById, removeCourse, updateCourse,
-  adminListBookingsForCourse, updateBookingStatus, removeBooking,
+  adminListBookingsForCourse, updateBookingStatus, removeBooking, adminGetBookingWithCourse,
+  adminUpdateBooking, getCourseById as getCourse,
 } from "@/lib/clauwi/courses-repo";
-import type { Course, CourseBooking, CourseBookingStatus } from "@/lib/clauwi/courses";
+import { sendBookingStatusEmail, sendBookingUpdatedEmail, sendBookingRemovedEmail } from "@/lib/clauwi/brevo";
+import { BOOKING_FIELD_LABELS } from "@/lib/clauwi/courses";
+import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus } from "@/lib/clauwi/courses";
+import type { BookingChange } from "@/lib/clauwi/email-templates/course-booking-updated";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -104,12 +108,93 @@ export async function getBookingsForCourseAction(courseId: string): Promise<Cour
   return adminListBookingsForCourse(courseId);
 }
 
-export async function updateBookingStatusAction(id: string, status: CourseBookingStatus): Promise<void> {
+/**
+ * Changes a booking's status. The participant is e-mailed ONLY when `notify`
+ * is set — the panel asks every time, so ordinary tidying of the list never
+ * mails anyone. Returns whether the e-mail actually went out (the change is
+ * already saved, so a send failure can't undo it).
+ */
+export async function updateBookingStatusAction(
+  id: string,
+  status: CourseBookingStatus,
+  notify = false,
+): Promise<{ emailSent: boolean }> {
   await requireAdmin();
-  await updateBookingStatus(id, status);
+  const booking = await updateBookingStatus(id, status);
+  if (!booking || !notify || status === "new") return { emailSent: false };
+
+  const course = await getCourse(booking.courseId);
+  if (!course) return { emailSent: false };
+
+  return sendOrLog(() => sendBookingStatusEmail({ booking, course, status }));
 }
 
-export async function deleteBookingAction(id: string): Promise<void> {
+/**
+ * Edits a booking's details. As above — the e-mail only goes out on request,
+ * and its contents come from comparing the booking before and after, so the
+ * participant sees exactly what changed.
+ */
+export async function updateBookingAction(
+  id: string,
+  patch: CourseBookingEdit,
+  notify = false,
+): Promise<{ ok: true; emailSent: boolean } | { ok: false; reason: "full" | "duplicate" | "not-found" }> {
   await requireAdmin();
-  await removeBooking(id);
+
+  const previous = await adminGetBookingWithCourse(id);
+  if (!previous) return { ok: false, reason: "not-found" };
+
+  const result = await adminUpdateBooking(id, patch);
+  if (!result.ok) return result;
+
+  if (!notify) return { ok: true, emailSent: false };
+
+  const changes = diffBooking(previous.booking, result.booking);
+  if (!changes.length) return { ok: true, emailSent: false };
+
+  // Note: the e-mail goes to the address AFTER the change. If the address is
+  // what changed, the old one gets nothing — usually the point (fixing a
+  // typo), but worth remembering.
+  const { emailSent } = await sendOrLog(() =>
+    sendBookingUpdatedEmail({ booking: result.booking, course: previous.course, changes }),
+  );
+  return { ok: true, emailSent };
+}
+
+/** The fields that actually changed — used to fill in the e-mail. */
+function diffBooking(before: CourseBooking, after: CourseBooking): BookingChange[] {
+  const fields = Object.keys(BOOKING_FIELD_LABELS) as (keyof typeof BOOKING_FIELD_LABELS)[];
+  return fields
+    .filter((field) => String(before[field] ?? "") !== String(after[field] ?? ""))
+    .map((field) => ({
+      label: BOOKING_FIELD_LABELS[field],
+      from: String(before[field] ?? ""),
+      to: String(after[field] ?? ""),
+    }));
+}
+
+/** A failed e-mail never undoes an already-saved change — just log it. */
+async function sendOrLog(send: () => Promise<void>): Promise<{ emailSent: boolean }> {
+  try {
+    await send();
+    return { emailSent: true };
+  } catch (e) {
+    console.error("booking notification email failed to send", e);
+    return { emailSent: false };
+  }
+}
+
+/**
+ * Deletes a booking. The data comes from the DELETE ... RETURNING itself, so
+ * the e-mail can be sent after the row is gone, with no separate read first.
+ */
+export async function deleteBookingAction(id: string, notify = false): Promise<{ emailSent: boolean }> {
+  await requireAdmin();
+  const booking = await removeBooking(id);
+  if (!booking || !notify) return { emailSent: false };
+
+  const course = await getCourse(booking.courseId);
+  if (!course) return { emailSent: false };
+
+  return sendOrLog(() => sendBookingRemovedEmail({ booking, course }));
 }

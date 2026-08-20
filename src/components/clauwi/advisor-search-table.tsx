@@ -20,7 +20,7 @@ export function AdvisorSearchTable({ items }: { items: Advisor[] }) {
     const q = normalize(query.trim());
     if (!q) return items;
     return items.filter(
-      (a) => normalize(a.nazwa).includes(q) || normalize(a.miejscowosc).includes(q) || normalize(a.oferta).includes(q)
+      (a) => normalize(a.name).includes(q) || normalize(a.locality).includes(q) || normalize(a.services).includes(q)
     );
   }, [items, query]);
 
@@ -59,15 +59,15 @@ export function AdvisorSearchTable({ items }: { items: Advisor[] }) {
             <tbody>
               {filtered.map((a) => (
                 <tr key={a.id} className="border-b border-border/60">
-                  <td className="py-3 pr-4 font-medium">{a.nazwa}</td>
-                  <td className="py-3 pr-4 text-ink/75">{a.poziom}</td>
-                  <td className="py-3 pr-4 text-ink/75">{a.miejscowosc}</td>
+                  <td className="py-3 pr-4 font-medium">{a.name}</td>
+                  <td className="py-3 pr-4 text-ink/75">{a.level}</td>
+                  <td className="py-3 pr-4 text-ink/75">{a.locality}</td>
                   <td className="py-3 pr-4 text-ink/75">
                     {a.email && <a href={`mailto:${a.email}`} className="hover:text-brand">{a.email}</a>}
                   </td>
-                  <td className="py-3 pr-4 text-ink/75">{a.www}</td>
-                  <td className="py-3 pr-4 text-ink/75">{a.telefon}</td>
-                  <td className="py-3 pr-4 text-ink/75">{a.oferta}</td>
+                  <td className="py-3 pr-4 text-ink/75">{a.website}</td>
+                  <td className="py-3 pr-4 text-ink/75">{a.phone}</td>
+                  <td className="py-3 pr-4 text-ink/75">{a.services}</td>
                 </tr>
               ))}
             </tbody>

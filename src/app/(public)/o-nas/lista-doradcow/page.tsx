@@ -6,8 +6,8 @@ import { SiteFooter } from "@/components/clauwi/site-footer";
 import { JsonLd } from "@/components/clauwi/json-ld";
 import { breadcrumbListJsonLd } from "@/lib/clauwi/breadcrumbs";
 import { PolandMap } from "@/components/clauwi/poland-map";
-import { WOJ_META } from "@/lib/clauwi/advisors";
-import { getWojCounts } from "@/lib/clauwi/advisors-repo";
+import { REGION_META } from "@/lib/clauwi/advisors";
+import { getRegionCounts } from "@/lib/clauwi/advisors-repo";
 
 const ZAGRANICA_SLUG = "zagranica";
 
@@ -22,13 +22,13 @@ export const metadata: Metadata = {
   twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
 };
 
-// Liczniki czytane z D1 per-request — dane zmieniają się z panelu admina.
+// Counts read from D1 per request — the data changes from the admin panel.
 export const dynamic = "force-dynamic";
 
 export default async function ListaDoradcowPage() {
-  const counts = await getWojCounts();
-  const regions = WOJ_META.filter((m) => m.slug !== ZAGRANICA_SLUG);
-  const zagranica = WOJ_META.find((m) => m.slug === ZAGRANICA_SLUG);
+  const counts = await getRegionCounts();
+  const regions = REGION_META.filter((m) => m.slug !== ZAGRANICA_SLUG);
+  const zagranica = REGION_META.find((m) => m.slug === ZAGRANICA_SLUG);
 
   return (
     <div className="flex min-h-full flex-col">
