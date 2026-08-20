@@ -100,10 +100,20 @@ function rewriteInternalLinks(body) {
 // Studio" into "Projekt - Bit-Art Studio, Opieka - Bopke.dev", keeping the
 // existing Bit-Art Studio link and adding a new Bopke.dev link.
 function rewriteFooterCredit(body) {
-  return body.replace(
-    /Projekt i opieka - <a href="http:\/\/www\.facebook\.com\/a\.warywocka">Bit-Art Studio<\/a>/,
-    'Projekt - <a href="http://www.facebook.com/a.warywocka">Bit-Art Studio</a>, Opieka - <a href="https://bopke.dev/">Bopke.dev</a>',
-  );
+  const credit =
+    'Projekt - <a href="http://www.facebook.com/a.warywocka">Bit-Art Studio</a>, ' +
+    'Opieka i adaptacja - <a href="https://bopke.dev/">Bopke.dev</a>';
+  return body
+    // fresh mirror output still carries the original single credit
+    .replace(
+      /Projekt i opieka - <a href="http:\/\/www\.facebook\.com\/a\.warywocka">Bit-Art Studio<\/a>/,
+      credit,
+    )
+    // already-rewritten pages: keep the wording in sync without re-mirroring
+    .replace(
+      /Opieka - <a href="https:\/\/bopke\.dev\/">Bopke\.dev<\/a>/,
+      'Opieka i adaptacja - <a href="https://bopke.dev/">Bopke.dev</a>',
+    );
 }
 
 // Public Turnstile sitekey (not secret — safe to bake into static HTML).
@@ -192,6 +202,54 @@ function altStemFor(src) {
   return file;
 }
 
+// The legacy WordPress install is compromised (see the project notes) and had
+// hidden SEO spam injected into some pages — darknet-marketplace copy in
+// Russian, wrapped in a div parked far off-screen:
+//
+//   <div style="position:absolute;left:-13168px;width:1000px;"> … </div>
+//
+// Invisible to a visitor, fully present for search engines, and it came along
+// for the ride when those pages were mirrored. Strip any absolutely-positioned
+// block pushed off-canvas; the real pages never use that trick.
+// The original content links "Kurs zaawansowany" to clauwi.kodu-kodu.pl, an
+// old development host of the site that no longer resolves (verified: no DNS
+// response). Nothing there to point at, and no equivalent page on the current
+// site, so the anchor is unwrapped to plain text rather than redirected —
+// the sentence still reads correctly without a link.
+const DEAD_LINK_HOSTS = [/^https?:\/\/clauwi\.kodu-kodu\.pl\b/i];
+
+export function unwrapDeadLinks(body) {
+  return body.replace(/<a\b([^>]*)href="([^"]+)"([^>]*)>([\s\S]*?)<\/a>/gi, (full, pre, href, post, text) =>
+    DEAD_LINK_HOSTS.some((h) => h.test(href)) ? text : full,
+  );
+}
+
+export function stripInjectedSpam(html) {
+  let out = "";
+  let rest = html;
+  const opener = /<div[^>]*style="[^"]*position:\s*absolute[^"]*(?:left|top):\s*-\d{3,}px[^"]*"[^>]*>/i;
+
+  for (;;) {
+    const m = rest.match(opener);
+    if (!m) return out + rest;
+
+    out += rest.slice(0, m.index);
+    // Walk forward counting nested <div>s so the matching </div> is removed
+    // along with everything between — a plain non-greedy match would stop at
+    // the first inner </div> and leave spam behind.
+    let i = m.index + m[0].length;
+    let depth = 1;
+    const tag = /<\/?div\b[^>]*>/gi;
+    tag.lastIndex = i;
+    let t;
+    while (depth > 0 && (t = tag.exec(rest))) {
+      depth += t[0][1] === "/" ? -1 : 1;
+      i = tag.lastIndex;
+    }
+    rest = rest.slice(i);
+  }
+}
+
 export function fillAltText(body) {
   // Operates on the raw (unescaped) HTML string before JSON.stringify serializes
   // it into the generated .ts module.
@@ -273,6 +331,8 @@ export async function mirrorPage(slug, path) {
   body = rewriteInternalLinks(body);
   body = rewriteFooterCredit(body);
   body = rewriteContactFormAction(body);
+  body = stripInjectedSpam(body);
+  body = unwrapDeadLinks(body);
   body = fillAltText(body);
   body = localizeAssetUrls(body);
 
