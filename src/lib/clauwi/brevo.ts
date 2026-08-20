@@ -4,6 +4,8 @@ import { courseBookingOrganizerEmail } from "./email-templates/course-booking-or
 import { courseBookingCancelledEmail, courseBookingConfirmedEmail } from "./email-templates/course-booking-status-update";
 import { courseBookingUpdatedEmail, type BookingChange } from "./email-templates/course-booking-updated";
 import { courseBookingRemovedEmail } from "./email-templates/course-booking-removed";
+import { contactFormEmail } from "./email-templates/contact-form";
+import { renderEmail, type EmailContent } from "./email-templates/layout";
 import { buildCourseIcs, icsFileName, type IcsMethod } from "./ics";
 import { formatRange } from "./time";
 import type { Course, CourseBooking } from "./courses";
@@ -66,19 +68,46 @@ async function sendViaBrevo(args: SendArgs): Promise<void> {
   }
 }
 
+/**
+ * Sends one of the templates from ./email-templates. The template supplies the
+ * subject and its own content; layout.ts wraps it in the site's look and
+ * derives the plain-text alternative, so every e-mail we send goes out as both
+ * HTML and text without the templates having to write it twice.
+ */
+async function sendTemplate(args: {
+  to: string;
+  toName?: string;
+  content: EmailContent;
+  replyTo?: { email: string; name?: string };
+  attachments?: Attachment[];
+}): Promise<void> {
+  // Until the domain cutover the logo has to be fetched from wherever this
+  // build is actually deployed — clauwi.pl is still the old WordPress site.
+  const { env } = await getCloudflareContext({ async: true });
+  const { subject, html, text } = renderEmail(args.content, { baseUrl: env.EMAIL_BASE_URL });
+  await sendViaBrevo({
+    to: args.to,
+    toName: args.toName,
+    subject,
+    html,
+    text,
+    replyTo: args.replyTo,
+    attachments: args.attachments,
+  });
+}
+
 type ContactSubmission = { name: string; email: string; message: string };
 
-// Contact form (src/app/api/contact/route.ts) — recipient is CONTACT_FORM_TO.
-// Unchanged from before this file's refactor (plain text, same subject/body).
+// Contact form (src/app/api/contact/route.ts) — recipient is CONTACT_FORM_TO,
+// Reply-To is the visitor so a reply reaches them directly.
 export async function sendContactEmail(submission: ContactSubmission): Promise<void> {
   const { env } = await getCloudflareContext({ async: true });
   const to = env.CONTACT_FORM_TO;
   if (!to) throw new Error("Brevo is not configured — missing CONTACT_FORM_TO");
 
-  await sendViaBrevo({
+  await sendTemplate({
     to,
-    subject: `Nowa wiadomość z formularza kontaktowego — ${submission.name}`,
-    text: `Imię: ${submission.name}\nEmail: ${submission.email}\n\n${submission.message}`,
+    content: contactFormEmail(submission),
     replyTo: { email: submission.email, name: submission.name },
   });
 }
@@ -132,18 +161,30 @@ export async function sendCourseBookingEmails(params: {
   const customerName = `${booking.firstName} ${booking.lastName}`;
   const dateTime = formatRange(course.startsAt, course.endsAt, { withTime: true });
 
-  const confirmation = courseBookingConfirmationEmail({ customerName, courseName: course.name });
+  const confirmation = courseBookingConfirmationEmail({
+    customerName,
+    courseName: course.name,
+    location: course.location,
+    dateTime,
+    price: course.price,
+    seats: booking.seats,
+  });
   const organizerNotice = courseBookingOrganizerEmail({
     organizerName: "Iza",
     courseName: course.name,
     location: course.location,
     startDateTime: dateTime,
+    customerName,
+    customerEmail: booking.email,
+    customerPhone: booking.phone,
+    seats: booking.seats,
+    message: booking.message,
   });
   const ics = await courseIcsAttachment(booking, course);
 
   await Promise.all([
-    sendViaBrevo({ to: booking.email, toName: customerName, ...confirmation, attachments: [ics] }),
-    sendViaBrevo({ to: await organizerRecipient(), ...organizerNotice, attachments: [ics] }),
+    sendTemplate({ to: booking.email, toName: customerName, content: confirmation, attachments: [ics] }),
+    sendTemplate({ to: await organizerRecipient(), content: organizerNotice, attachments: [ics] }),
   ]);
 }
 
@@ -169,7 +210,7 @@ export async function sendBookingStatusEmail(params: {
     method: status === "cancelled" ? "CANCEL" : "PUBLISH",
   });
 
-  await sendViaBrevo({ to: booking.email, toName: customerName, ...email, attachments: [ics] });
+  await sendTemplate({ to: booking.email, toName: customerName, content: email, attachments: [ics] });
 }
 
 // Sent from the admin panel after a booking is edited — again only when the
@@ -194,7 +235,7 @@ export async function sendBookingUpdatedEmail(params: {
   });
   const ics = await courseIcsAttachment(booking, course);
 
-  await sendViaBrevo({ to: booking.email, toName: customerName, ...email, attachments: [ics] });
+  await sendTemplate({ to: booking.email, toName: customerName, content: email, attachments: [ics] });
 }
 
 // Sent after a booking is deleted from the panel (again, only on request).
@@ -214,5 +255,5 @@ export async function sendBookingRemovedEmail(params: {
   });
   const ics = await courseIcsAttachment(booking, course, { method: "CANCEL", sequenceOffset: 1 });
 
-  await sendViaBrevo({ to: booking.email, toName: customerName, ...email, attachments: [ics] });
+  await sendTemplate({ to: booking.email, toName: customerName, content: email, attachments: [ics] });
 }

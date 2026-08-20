@@ -26,6 +26,9 @@ export const NAV: NavItem[] = [
 
 export const SITE = {
   name: "CLAUWI®",
+  // Absolute base URL — needed anywhere a relative path won't do, e.g. images
+  // and links inside e-mails.
+  url: "https://clauwi.pl",
   tagline: "Szkoła doradców noszenia",
   projectCredit: { label: "Bit-Art Studio", href: "http://www.facebook.com/a.warywocka" },
   careCredit: { label: "Bopke.dev", href: "https://bopke.dev/" },
