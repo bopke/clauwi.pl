@@ -26,7 +26,6 @@ const course = {
 const templates = {
   "01-booking-confirmation": courseBookingConfirmationEmail({ ...course, price: 2500, seats: 2 }),
   "02-organizer-notification": courseBookingOrganizerEmail({
-    organizerName: "Iza",
     courseName: course.courseName,
     location: course.location,
     startDateTime: course.dateTime,

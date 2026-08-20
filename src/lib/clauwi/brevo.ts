@@ -170,7 +170,6 @@ export async function sendCourseBookingEmails(params: {
     seats: booking.seats,
   });
   const organizerNotice = courseBookingOrganizerEmail({
-    organizerName: "Iza",
     courseName: course.name,
     location: course.location,
     startDateTime: dateTime,
