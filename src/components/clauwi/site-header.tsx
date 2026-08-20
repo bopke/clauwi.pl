@@ -9,6 +9,13 @@ import { cn } from "@/lib/utils";
 
 // Colors lifted 1:1 from the legacy Kadence drawer (src/legacy/base.css /
 // --global-palette1/8) so the mobile menu matches the homepage exactly.
+// Measured off the legacy header (see the comment on SiteHeader).
+const BAR_BG = "rgba(244, 180, 167, 0.94)";
+const NAV_TEXT = "#692D2C";
+const NAV_TEXT_ACTIVE = "#EDF2F7";
+const SOCIAL_ICON = "#2D3748";
+const SEARCH_ICON = "#4A5568";
+
 const DRAWER_BG = "#090c10";
 const DRAWER_TEXT = "#F7FAFC";
 const DRAWER_ACTIVE = "#3182CE";
@@ -22,12 +29,23 @@ function FacebookIcon({ className }: { className?: string }) {
 }
 
 /**
- * Global site header — matches the live Kadence design.
- * - `overlay` (homepage): transparent salmon over the hero image.
- * - default (inner pages): solid salmon bar.
- * Two rows: menu + search (row 1), icon-only socials centered (row 2). No logo.
+ * Global site header for the hand-built pages (course calendar, advisor
+ * directory, 404). The legacy-mirrored pages carry the original Kadence
+ * header inside their own HTML, so this one has to match it rather than
+ * invent its own look — every value below was measured off the rendered
+ * legacy header (`#masthead` on /o-nas) at 1440px:
+ *
+ *   row 1   min-height 80px, nav centred, links 17px/500 uppercase #692D2C
+ *   row 2   height 45px, social icons 17px #2D3748 centred, search on the right
+ *   bar     rgba(244,180,167,0.94), static (it scrolls away, not sticky)
+ *   width   content capped at 1242px
+ *   break   desktop layout from 1025px up — Kadence's own breakpoint, one
+ *           pixel off Tailwind's `lg`, which left 1024px-wide screens showing
+ *           the desktop bar here and the mobile bar on every other page
+ *
+ * If the legacy header ever changes, re-measure rather than eyeballing it.
  */
-export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
+export function SiteHeader() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   // Pick the single most specific nav item matching the current path (e.g.
@@ -48,74 +66,70 @@ export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
   }, [open]);
 
   return (
-    <header
-      className={cn(
-        "z-50 text-ink",
-        overlay
-          ? "absolute inset-x-0 top-0 bg-[rgba(239,166,147,0.76)]"
-          : "sticky top-0 bg-[#f4b4a7]",
-      )}
-    >
-      <div className="mx-auto max-w-6xl px-4">
-        {/* Row 1: menu (centered) + search (right) + mobile toggle */}
-        <div className="relative flex items-center justify-center py-3">
-          <nav className="hidden lg:block" aria-label="Główne menu">
-            <ul className="flex items-center gap-6">
-              {NAV.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "text-sm font-semibold uppercase tracking-wide text-ink/90 transition-colors hover:text-white",
-                      isActive(item.href) && "underline decoration-2 underline-offset-8",
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+    <header className="relative z-50" style={{ backgroundColor: BAR_BG }}>
+      {/* Row 1: menu (centred) + mobile toggle. */}
+      <div className="relative mx-auto flex min-h-[80px] max-w-[1242px] items-center justify-center px-4">
+        <nav className="hidden min-[1025px]:block" aria-label="Główne menu">
+          <ul className="flex items-center">
+            {NAV.map((item) => (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "block border-b-2 border-transparent px-[9.69px] text-[17px] font-medium uppercase leading-[27px] transition-colors",
+                    isActive(item.href) && "border-current",
+                  )}
+                  style={{ color: isActive(item.href) ? NAV_TEXT_ACTIVE : NAV_TEXT }}
+                  aria-current={isActive(item.href) ? "page" : undefined}
+                >
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
-          {/* Search (visual parity; wired later) */}
-          <button
-            type="button"
-            aria-label="Szukaj"
-            className="absolute right-0 hidden p-2 text-ink hover:text-white lg:inline-flex"
-          >
-            <Search className="size-5" />
-          </button>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="absolute right-6 inline-flex p-2 min-[1025px]:hidden"
+          style={{ color: NAV_TEXT }}
+          aria-label={open ? "Zamknij menu" : "Otwórz menu"}
+          aria-expanded={open}
+        >
+          {open ? <X className="size-5" /> : <Menu className="size-5" />}
+        </button>
+      </div>
 
-          {/* Mobile: hamburger right-aligned block */}
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="absolute right-0 inline-flex p-2 text-ink lg:hidden"
-            aria-label={open ? "Zamknij menu" : "Otwórz menu"}
-            aria-expanded={open}
-          >
-            {open ? <X className="size-6" /> : <Menu className="size-6" />}
-          </button>
-        </div>
+      {/* Row 2: social icons centred, search pinned right — same as legacy.
+          The bottom padding reproduces the legacy row's optical offset: its
+          icons sit 5px above the row's true centre, and without this the two
+          headers visibly disagree when moving between pages. */}
+      <div className="relative mx-auto hidden h-[45px] max-w-[1242px] items-center justify-center gap-[22px] px-4 pb-[10px] min-[1025px]:flex">
+        <a href={CONTACT.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" style={{ color: SOCIAL_ICON }}>
+          <FacebookIcon className="size-[17px]" />
+        </a>
+        <a href={`mailto:${CONTACT.email}`} aria-label="E-mail" style={{ color: SOCIAL_ICON }}>
+          <Mail className="size-[17px]" />
+        </a>
+        <a href={CONTACT.phoneHref} aria-label="Telefon" style={{ color: SOCIAL_ICON }}>
+          <Phone className="size-[17px]" />
+        </a>
 
-        {/* Row 2: icon-only socials, centered */}
-        <div className="flex items-center justify-center gap-6 pb-3">
-          <a href={CONTACT.facebook} target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-ink hover:text-white">
-            <FacebookIcon className="size-5" />
-          </a>
-          <a href={`mailto:${CONTACT.email}`} aria-label="E-mail" className="text-ink hover:text-white">
-            <Mail className="size-5" />
-          </a>
-          <a href={CONTACT.phoneHref} aria-label="Telefon" className="text-ink hover:text-white">
-            <Phone className="size-5" />
-          </a>
-        </div>
+        <button
+          type="button"
+          aria-label="Szukaj"
+          className="absolute right-2 hidden min-[1025px]:inline-flex"
+          style={{ color: SEARCH_ICON }}
+        >
+          <Search className="size-[17px]" />
+        </button>
       </div>
 
       {/* Mobile full-screen drawer — matches the homepage's legacy Kadence drawer. */}
       <div
         className={cn(
-          "fixed inset-0 z-[100000] lg:hidden",
+          "fixed inset-0 z-[100000] min-[1025px]:hidden",
           open ? "" : "pointer-events-none",
         )}
         aria-hidden={!open}

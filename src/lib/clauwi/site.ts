@@ -10,18 +10,26 @@ export const CONTACT = {
 
 export type NavItem = { label: string; href: string };
 
-// Primary navigation — same order and destinations as the current site.
+// Primary navigation — same order and destinations as the legacy Kadence
+// header, which the hand-built SiteHeader has to mirror exactly.
+//
+// The paths are the ORIGINAL WordPress ones, not tidied-up versions: two
+// pages live under /strona-glowna/, and "Zasady naboru" really is spelled
+// "regulam-i-zasady-naboru" (a typo in the original site). Cleaning those up
+// here just produces 404s, since the mirrored pages are served at the URLs
+// they had in WordPress — verified against the legacy header's own hrefs.
+//
 // Note: "Kursy" points at the events calendar, "Doradcy" at the advisor list.
 export const NAV: NavItem[] = [
   { label: "Strona główna", href: "/" },
   { label: "O nas", href: "/o-nas" },
-  { label: "System kształcenia", href: "/system-ksztalcenia" },
-  { label: "Zasady naboru", href: "/regulamin-i-zasady-naboru" },
+  { label: "System kształcenia", href: "/strona-glowna/system-ksztalcenia" },
+  { label: "Zasady naboru", href: "/regulam-i-zasady-naboru" },
   { label: "Blog", href: "/blog" },
   { label: "Kursy", href: "/kalendarz-wydarzen" },
   { label: "Doradcy", href: "/o-nas/lista-doradcow" },
   { label: "Kontakt", href: "/kontakt" },
-  { label: "FAQ", href: "/faq" },
+  { label: "FAQ", href: "/strona-glowna/faq" },
 ];
 
 export const SITE = {
