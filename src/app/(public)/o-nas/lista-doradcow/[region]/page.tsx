@@ -6,28 +6,28 @@ import { SiteFooter } from "@/components/clauwi/site-footer";
 import { JsonLd } from "@/components/clauwi/json-ld";
 import { breadcrumbListJsonLd } from "@/lib/clauwi/breadcrumbs";
 import { AdvisorSearchTable } from "@/components/clauwi/advisor-search-table";
-import { WOJ_META } from "@/lib/clauwi/advisors";
+import { REGION_META } from "@/lib/clauwi/advisors";
 import { listPublicAdvisors } from "@/lib/clauwi/advisors-repo";
 
 // Advisor data lives in D1 and is managed from the admin panel — never
 // prerender this at build time, always read the current rows.
 export const dynamic = "force-dynamic";
 
-function findWoj(slug: string) {
-  return WOJ_META.find((w) => w.slug === slug);
+function findRegion(slug: string) {
+  return REGION_META.find((w) => w.slug === slug);
 }
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ woj: string }>;
+  params: Promise<{ region: string }>;
 }): Promise<Metadata> {
-  const { woj } = await params;
-  const m = findWoj(woj);
+  const { region } = await params;
+  const m = findRegion(region);
   if (!m) return { title: "Doradcy" };
   const title = `Doradcy noszenia — ${m.name}`;
   const description = `Lista aktywnych Doradców Noszenia ClauWi® w regionie: ${m.name}. Kontakt, poziom certyfikacji i oferta każdego doradcy.`;
-  const url = `/o-nas/lista-doradcow/${woj}`;
+  const url = `/o-nas/lista-doradcow/${region}`;
   return {
     title,
     description,
@@ -40,13 +40,13 @@ export async function generateMetadata({
 export default async function RegionPage({
   params,
 }: {
-  params: Promise<{ woj: string }>;
+  params: Promise<{ region: string }>;
 }) {
-  const { woj } = await params;
-  const meta = findWoj(woj);
+  const { region } = await params;
+  const meta = findRegion(region);
   if (!meta) notFound();
 
-  const { items } = await listPublicAdvisors({ woj, q: "", sort: "nazwa", offset: 0, limit: 500 });
+  const { items } = await listPublicAdvisors({ region, q: "", sort: "name", offset: 0, limit: 500 });
 
   return (
     <div className="flex min-h-full flex-col">
@@ -54,7 +54,7 @@ export default async function RegionPage({
         data={breadcrumbListJsonLd([
           { name: "Strona główna", url: "/" },
           { name: "Doradcy", url: "/o-nas/lista-doradcow" },
-          { name: meta.name, url: `/o-nas/lista-doradcow/${woj}` },
+          { name: meta.name, url: `/o-nas/lista-doradcow/${region}` },
         ])}
       />
       <SiteHeader />

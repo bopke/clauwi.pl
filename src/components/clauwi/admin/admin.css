@@ -195,7 +195,7 @@
 /* badge statusu w tabeli */
 .adm-statusbadge { display: inline-flex; align-items: center; font-family: "Quicksand", sans-serif; font-weight: 700; font-size: 11px; letter-spacing: .2px; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
 /* ClauWi advisors have one free-text "poziom" (level), not multi-tone statuses. */
-.adm-statusbadge--poziom { background: #f3e2dd; color: var(--green-d); }
+.adm-statusbadge--level { background: #f3e2dd; color: var(--green-d); }
 .adm-statusbadge--inactive { background: #f1efe6; color: var(--ink-soft); }
 .adm-name-cell { display: inline-flex; align-items: center; gap: 7px; }
 .adm-tick { color: var(--green); display: inline-flex; }

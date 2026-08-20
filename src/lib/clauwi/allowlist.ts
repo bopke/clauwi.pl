@@ -1,7 +1,7 @@
 import "server-only";
 
-// Allowlista kont Google z dostępem do panelu — przechowywana w D1.
-// Logowanie jest bramkowane przez te funkcje (zob. src/auth.ts).
+// Allowlist of Google accounts with access to the admin panel, stored in D1.
+// Sign-in is gated by these functions (see src/auth.ts).
 // Mirrors specjalisci-easybaby's allowlist module exactly.
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";

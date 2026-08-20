@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { registry } from "@/legacy/registry";
-import { WOJ_META } from "@/lib/clauwi/advisors";
+import { REGION_META } from "@/lib/clauwi/advisors";
 import { listUpcomingCourses } from "@/lib/clauwi/courses-repo";
 import { getBlogPostMeta } from "@/lib/clauwi/blog-meta";
 
@@ -30,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Advisor directory — region index + each voivodeship page.
   entries.push({ url: `${BASE}/o-nas/lista-doradcow`, changeFrequency: "weekly", priority: 0.7 });
-  for (const woj of WOJ_META) {
+  for (const woj of REGION_META) {
     entries.push({ url: `${BASE}/o-nas/lista-doradcow/${woj.slug}`, changeFrequency: "weekly", priority: 0.6 });
   }
 

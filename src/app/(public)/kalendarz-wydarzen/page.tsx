@@ -8,6 +8,7 @@ import { breadcrumbListJsonLd } from "@/lib/clauwi/breadcrumbs";
 import { listUpcomingCourses, getBookedCount } from "@/lib/clauwi/courses-repo";
 import { CourseUtil } from "@/lib/clauwi/courses";
 import type { Course } from "@/lib/clauwi/courses";
+import { formatRange } from "@/lib/clauwi/time";
 
 const TITLE = "Kalendarz kursów";
 const DESCRIPTION = "Nadchodzące kursy i szkolenia ClauWi® — terminy, ceny, zapisy.";
@@ -20,16 +21,8 @@ export const metadata: Metadata = {
   twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
 };
 
-// Kursy zarządzane są z panelu admina — dane muszą być zawsze aktualne.
+// Courses are managed from the admin panel — this data must never be stale.
 export const dynamic = "force-dynamic";
-
-function formatRange(od: string, doo: string) {
-  const a = new Date(od.replace(" ", "T"));
-  const b = new Date(doo.replace(" ", "T"));
-  const fmt = (d: Date) => d.toLocaleDateString("pl-PL", { day: "numeric", month: "long", year: "numeric" });
-  const sameDay = a.toDateString() === b.toDateString();
-  return sameDay ? fmt(a) : `${fmt(a)} – ${fmt(b)}`;
-}
 
 function itemListJsonLd(courses: Course[]) {
   return {
@@ -39,7 +32,7 @@ function itemListJsonLd(courses: Course[]) {
       "@type": "ListItem",
       position: i + 1,
       url: `https://clauwi.pl/kalendarz-wydarzen/${c.id}`,
-      name: c.nazwa,
+      name: c.name,
     })),
   };
 }
@@ -91,18 +84,18 @@ export default async function KalendarzWydarzenPage() {
                       className="group flex h-full flex-col rounded-[1px] border border-border p-6 transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-lg"
                     >
                       <span className="inline-block w-fit rounded-[1px] border border-brand/30 bg-brand/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-brand">
-                        {course.typ}
+                        {course.type}
                       </span>
-                      <h2 className="mt-3 font-heading text-xl font-medium text-ink">{course.nazwa}</h2>
+                      <h2 className="mt-3 font-heading text-xl font-medium text-ink">{course.name}</h2>
 
                       <dl className="mt-4 space-y-2 text-sm text-ink/70">
                         <div className="flex items-center gap-2">
                           <CalendarDays className="size-4 shrink-0 text-brand" />
-                          <span>{formatRange(course.dataOd, course.dataDo)}</span>
+                          <span>{formatRange(course.startsAt, course.endsAt)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <MapPin className="size-4 shrink-0 text-brand" />
-                          <span>{course.miejsce}</span>
+                          <span>{course.location}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Users className="size-4 shrink-0 text-brand" />
@@ -115,7 +108,7 @@ export default async function KalendarzWydarzenPage() {
                       <div className="mt-6 flex flex-1 items-end justify-between border-t border-border pt-4">
                         <span className="flex items-center gap-1.5 font-heading text-lg text-ink">
                           <Banknote className="size-4 text-brand" />
-                          {course.cena} zł
+                          {course.price} zł
                         </span>
                         <span className="flex items-center gap-1 text-sm font-medium uppercase tracking-wide text-brand transition-transform group-hover:translate-x-0.5">
                           Zapisz się <ArrowRight className="size-4" />

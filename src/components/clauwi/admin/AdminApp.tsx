@@ -1,13 +1,13 @@
 "use client";
 
-// Panel administracyjny ClauWi® — architektura 1:1 z panelem specjalisci-easybaby
-// (logowanie Google przez Auth.js, allowlista w D1, CRUD przez akcje serwerowe),
-// ale pola doradcy są WŁASNE dla ClauWi (patrz src/lib/clauwi/advisors.ts):
-// jedno pełne imię i nazwisko, jeden "poziom", jedno województwo, bez zdjęcia —
-// nie ma tu multi-statusów, multi-regionów ani uploadu zdjęć jak w easybaby.
+// ClauWi® admin panel — architecture copied 1:1 from the specjalisci-easybaby
+// panel (Google sign-in via Auth.js, allowlist in D1, CRUD through server
+// actions), but the advisor fields are ClauWi's OWN (see
+// src/lib/clauwi/advisors.ts): one full name, one level, one region, no photo
+// — none of easybaby's multi-status, multi-region or photo upload.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AdvisorUtil, POZIOM_SUGGESTIONS, WOJ_META } from "@/lib/clauwi/advisors";
+import { AdvisorUtil, LEVEL_SUGGESTIONS, REGION_META } from "@/lib/clauwi/advisors";
 import type { Advisor, AllowEntry } from "@/lib/clauwi/advisors";
 import {
   addAllowAction, createAdvisorAction, deleteAdvisorAction, getAdvisorsAdminAction,
@@ -17,7 +17,7 @@ import { CoursesTab } from "./CoursesTab";
 import "./admin.css";
 
 const coll = new Intl.Collator("pl");
-const wojName = (slug: string) => AdvisorUtil.wojName(slug);
+const regionName = (slug: string) => AdvisorUtil.regionName(slug);
 
 type AdvisorDraft = Omit<Advisor, "id"> & { id?: string };
 type Editing = Advisor | "new" | null;
@@ -29,8 +29,8 @@ const TrashIcon = () => (
 
 // ====== Formularz doradcy (modal) ======
 const EMPTY: AdvisorDraft = {
-  nazwa: "", poziom: "", wojewodztwo: WOJ_META[0].slug, miejscowosc: "",
-  email: "", telefon: "", www: "", oferta: "", waznoscUprawnien: "", uwagi: "", aktywny: true,
+  name: "", level: "", region: REGION_META[0].slug, locality: "",
+  email: "", phone: "", website: "", services: "", certificationValidUntil: "", notes: "", active: true,
 };
 
 function AdvisorForm({ initial, onSave, onClose }: { initial: Advisor | null; onSave: (data: AdvisorDraft) => void; onClose: () => void }) {
@@ -44,9 +44,9 @@ function AdvisorForm({ initial, onSave, onClose }: { initial: Advisor | null; on
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const er: Record<string, number> = {};
-    if (!f.nazwa.trim()) er.nazwa = 1;
-    if (!f.wojewodztwo) er.wojewodztwo = 1;
-    if (!f.miejscowosc.trim()) er.miejscowosc = 1;
+    if (!f.name.trim()) er.name = 1;
+    if (!f.region) er.region = 1;
+    if (!f.locality.trim()) er.locality = 1;
     setErr(er);
     if (Object.keys(er).length) return;
     onSave({ ...f });
@@ -60,40 +60,40 @@ function AdvisorForm({ initial, onSave, onClose }: { initial: Advisor | null; on
           <button type="button" className="adm-x" onClick={onClose} aria-label="Zamknij">×</button>
         </div>
         <div className="adm-sheet__body">
-          <label className={"adm-f" + (err.nazwa ? " is-err" : "")}>
+          <label className={"adm-f" + (err.name ? " is-err" : "")}>
             <span>Imię i nazwisko</span>
-            <input ref={firstRef} value={f.nazwa} onChange={(e) => set("nazwa", e.target.value)} placeholder="np. Anna Kowalska" />
+            <input ref={firstRef} value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="np. Anna Kowalska" />
           </label>
 
           <div className="adm-f">
             <span>Poziom <small>(kliknij podpowiedź lub wpisz własną wartość)</small></span>
             <div className="adm-statuspick">
-              {POZIOM_SUGGESTIONS.map((p) => (
-                <label key={p} className={"adm-statuspick__opt" + (f.poziom === p ? " is-on" : "")}>
-                  <input type="radio" name="poziom" checked={f.poziom === p} onChange={() => set("poziom", p)} />
+              {LEVEL_SUGGESTIONS.map((p) => (
+                <label key={p} className={"adm-statuspick__opt" + (f.level === p ? " is-on" : "")}>
+                  <input type="radio" name="level" checked={f.level === p} onChange={() => set("level", p)} />
                   <span>{p}</span>
                 </label>
               ))}
             </div>
-            <input value={f.poziom} onChange={(e) => set("poziom", e.target.value)} placeholder="np. Kurs podstawowy, Certyfikat, lub nazwa kraju dla zagranicy" style={{ marginTop: 8 }} />
+            <input value={f.level} onChange={(e) => set("level", e.target.value)} placeholder="np. Kurs podstawowy, Certyfikat, lub nazwa kraju dla zagranicy" style={{ marginTop: 8 }} />
           </div>
 
           <div className="adm-grid2">
-            <label className={"adm-f" + (err.wojewodztwo ? " is-err" : "")}>
+            <label className={"adm-f" + (err.region ? " is-err" : "")}>
               <span>Województwo</span>
-              <select value={f.wojewodztwo} onChange={(e) => set("wojewodztwo", e.target.value)}>
-                {WOJ_META.map((m) => <option key={m.slug} value={m.slug}>{m.name}</option>)}
+              <select value={f.region} onChange={(e) => set("region", e.target.value)}>
+                {REGION_META.map((m) => <option key={m.slug} value={m.slug}>{m.name}</option>)}
               </select>
             </label>
             <label className="adm-check">
-              <input type="checkbox" checked={f.aktywny} onChange={(e) => set("aktywny", e.target.checked)} />
+              <input type="checkbox" checked={f.active} onChange={(e) => set("active", e.target.checked)} />
               <span>Aktywny <small>(widoczny na publicznej liście)</small></span>
             </label>
           </div>
 
-          <label className={"adm-f" + (err.miejscowosc ? " is-err" : "")}>
+          <label className={"adm-f" + (err.locality ? " is-err" : "")}>
             <span>Miejscowość / obszar działania</span>
-            <input value={f.miejscowosc} onChange={(e) => set("miejscowosc", e.target.value)} placeholder="np. Kraków i okolice, Gdów, Wieliczka" />
+            <input value={f.locality} onChange={(e) => set("locality", e.target.value)} placeholder="np. Kraków i okolice, Gdów, Wieliczka" />
           </label>
 
           <div className="adm-grid2">
@@ -103,28 +103,28 @@ function AdvisorForm({ initial, onSave, onClose }: { initial: Advisor | null; on
             </label>
             <label className="adm-f">
               <span>Telefon <small>(opcjonalnie)</small></span>
-              <input value={f.telefon} onChange={(e) => set("telefon", e.target.value)} placeholder="np. 500 100 200" />
+              <input value={f.phone} onChange={(e) => set("phone", e.target.value)} placeholder="np. 500 100 200" />
             </label>
           </div>
 
           <label className="adm-f">
             <span>Strona WWW <small>(opcjonalnie — adres strony lub np. „Fb: nazwa profilu”)</small></span>
-            <input value={f.www} onChange={(e) => set("www", e.target.value)} placeholder="np. www.annakowalska.pl" />
+            <input value={f.website} onChange={(e) => set("website", e.target.value)} placeholder="np. www.annakowalska.pl" />
           </label>
 
           <label className="adm-f">
             <span>Oferta dodatkowa <small>(opcjonalnie)</small></span>
-            <input value={f.oferta} onChange={(e) => set("oferta", e.target.value)} placeholder="np. Szkolenia indywidualne i grupowe, sklep, wypożyczalnia" />
+            <input value={f.services} onChange={(e) => set("services", e.target.value)} placeholder="np. Szkolenia indywidualne i grupowe, sklep, wypożyczalnia" />
           </label>
 
           <div className="adm-grid2">
             <label className="adm-f">
               <span>Ważność uprawnień <small>(opcjonalnie)</small></span>
-              <input value={f.waznoscUprawnien} onChange={(e) => set("waznoscUprawnien", e.target.value)} placeholder="np. 2027-05-01" />
+              <input value={f.certificationValidUntil} onChange={(e) => set("certificationValidUntil", e.target.value)} placeholder="np. 2027-05-01" />
             </label>
             <label className="adm-f">
               <span>Uwagi <small>(wewnętrzne, niepubliczne)</small></span>
-              <input value={f.uwagi} onChange={(e) => set("uwagi", e.target.value)} placeholder="notatka dla administratora" />
+              <input value={f.notes} onChange={(e) => set("notes", e.target.value)} placeholder="notatka dla administratora" />
             </label>
           </div>
         </div>
@@ -153,12 +153,12 @@ function Confirm({ title, text, confirmLabel, onConfirm, onClose }: { title: str
   );
 }
 
-// ====== Zakładka: Doradcy ======
+// ====== Tab: advisors ======
 function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
   const [advisors, setAdvisors] = useState<Advisor[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
-  const [woj, setWoj] = useState("");
+  const [region, setRegion] = useState("");
   const [editing, setEditing] = useState<Editing>(null);
   const [delTarget, setDelTarget] = useState<Advisor | null>(null);
 
@@ -171,20 +171,20 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
   const view = useMemo(() => {
     let arr = advisors.slice();
     const qq = q.trim().toLowerCase();
-    if (qq) arr = arr.filter((a) => a.nazwa.toLowerCase().includes(qq) || a.miejscowosc.toLowerCase().includes(qq));
-    if (woj) arr = arr.filter((a) => a.wojewodztwo === woj);
-    arr.sort((x, y) => coll.compare(x.nazwa, y.nazwa));
+    if (qq) arr = arr.filter((a) => a.name.toLowerCase().includes(qq) || a.locality.toLowerCase().includes(qq));
+    if (region) arr = arr.filter((a) => a.region === region);
+    arr.sort((x, y) => coll.compare(x.name, y.name));
     return arr;
-  }, [advisors, q, woj]);
+  }, [advisors, q, region]);
 
   async function save(data: AdvisorDraft) {
     try {
       if (editing && editing !== "new") {
         await updateAdvisorAction({ ...editing, ...data, id: editing.id });
-        toast("Zapisano zmiany dla " + data.nazwa);
+        toast("Zapisano zmiany dla " + data.name);
       } else {
         await createAdvisorAction(data);
-        toast("Dodano doradcę: " + data.nazwa);
+        toast("Dodano doradcę: " + data.name);
       }
       setEditing(null);
       await refresh();
@@ -196,7 +196,7 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
     if (!delTarget) return;
     try {
       await deleteAdvisorAction(delTarget.id);
-      toast("Usunięto: " + delTarget.nazwa);
+      toast("Usunięto: " + delTarget.name);
     } catch {
       toast("Nie udało się usunąć doradcy.");
     } finally {
@@ -212,9 +212,9 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
           <span aria-hidden="true">⌕</span>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Szukaj po nazwisku lub miejscowości…" />
         </div>
-        <select className="adm-select" value={woj} onChange={(e) => setWoj(e.target.value)}>
+        <select className="adm-select" value={region} onChange={(e) => setRegion(e.target.value)}>
           <option value="">Wszystkie województwa</option>
-          {WOJ_META.map((m) => <option key={m.slug} value={m.slug}>{m.name}</option>)}
+          {REGION_META.map((m) => <option key={m.slug} value={m.slug}>{m.name}</option>)}
         </select>
         <span className="adm-count">{view.length} z {advisors.length}</span>
         <button className="adm-btn adm-btn--solid" onClick={() => setEditing("new")}>+ Dodaj doradcę</button>
@@ -230,23 +230,23 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
               <tr key={a.id}>
                 <td className="adm-td-name">
                   <span className="adm-name-cell">
-                    {a.nazwa}
-                    {a.aktywny && <span className="adm-tick" title="Aktywny"><svg viewBox="0 0 24 24" width="15" height="15"><circle cx="12" cy="12" r="11" fill="currentColor" /><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" /></svg></span>}
+                    {a.name}
+                    {a.active && <span className="adm-tick" title="Aktywny"><svg viewBox="0 0 24 24" width="15" height="15"><circle cx="12" cy="12" r="11" fill="currentColor" /><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" /></svg></span>}
                   </span>
-                  {!a.aktywny && <div><span className="adm-statusbadge adm-statusbadge--inactive">nieaktywny</span></div>}
+                  {!a.active && <div><span className="adm-statusbadge adm-statusbadge--inactive">nieaktywny</span></div>}
                 </td>
-                <td>{a.poziom && <span className="adm-statusbadge adm-statusbadge--poziom">{a.poziom}</span>}</td>
+                <td>{a.level && <span className="adm-statusbadge adm-statusbadge--level">{a.level}</span>}</td>
                 <td className="adm-td-regions">
-                  <span className="adm-regchip"><b>{wojName(a.wojewodztwo)}</b>{a.miejscowosc ? ": " + a.miejscowosc : ""}</span>
+                  <span className="adm-regchip"><b>{regionName(a.region)}</b>{a.locality ? ": " + a.locality : ""}</span>
                 </td>
                 <td className="adm-td-addr">
                   {a.email && <div>{a.email}</div>}
-                  {a.telefon && <div>{a.telefon}</div>}
-                  {a.www && <div>{a.www}</div>}
+                  {a.phone && <div>{a.phone}</div>}
+                  {a.website && <div>{a.website}</div>}
                 </td>
                 <td className="adm-td-addr">
-                  {a.waznoscUprawnien && <div>Ważność: {a.waznoscUprawnien}</div>}
-                  {a.uwagi && <div>{a.uwagi}</div>}
+                  {a.certificationValidUntil && <div>Ważność: {a.certificationValidUntil}</div>}
+                  {a.notes && <div>{a.notes}</div>}
                 </td>
                 <td className="adm-td-act">
                   <button className="adm-iconbtn" title="Edytuj" onClick={() => setEditing(a)}>
@@ -269,7 +269,7 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
       {delTarget && (
         <Confirm
           title="Usunąć doradcę?"
-          text={"Czy na pewno usunąć „" + delTarget.nazwa + "”? Tej operacji nie można cofnąć."}
+          text={"Czy na pewno usunąć „" + delTarget.name + "”? Tej operacji nie można cofnąć."}
           confirmLabel="Usuń"
           onConfirm={doDelete}
           onClose={() => setDelTarget(null)}
@@ -279,7 +279,7 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
   );
 }
 
-// ====== Zakładka: Dostęp (allowlista w D1) ======
+// ====== Tab: access (allowlist in D1) ======
 function AccessTab({ currentEmail, toast }: { currentEmail: string; toast: (m: string) => void }) {
   const [list, setList] = useState<AllowEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -381,7 +381,7 @@ function useToast(): [(m: string) => void, React.ReactNode] {
   return [show, node];
 }
 
-// ====== Aplikacja (zalogowana powłoka) ======
+// ====== The app shell, once signed in ======
 export function AdminApp({ user }: { user: AdminUser }) {
   const [tab, setTab] = useState<"doradcy" | "kursy" | "dostep">("doradcy");
   const [menu, setMenu] = useState(false);

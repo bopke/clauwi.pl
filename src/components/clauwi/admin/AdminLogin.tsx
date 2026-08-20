@@ -1,5 +1,5 @@
-// Ekran logowania panelu — prawdziwe logowanie Google (Auth.js).
-// Server Component: przycisk uruchamia akcję serwerową signInGoogle.
+// The panel's sign-in screen — real Google sign-in via Auth.js.
+// Server Component: the button invokes the signInGoogle server action.
 // Mirrors specjalisci-easybaby's AdminLogin.tsx (architecture identical; only
 // branding/copy is ClauWi-specific).
 
