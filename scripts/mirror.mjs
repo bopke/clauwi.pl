@@ -241,6 +241,25 @@ const DEAD_LINK_HOSTS = [/^https?:\/\/clauwi\.kodu-kodu\.pl\b/i];
 //     inbox is the one they now monitor. The data controller named in the
 //     policy (Naturalnie Izabela Banach) is untouched; only the contact
 //     address changed.
+// The privacy policy's data-controller clause was out of date: it gave a
+// Pruszków address and cited a municipal business register that stopped
+// existing when CEIDG was centralised in 2011. Checked against the Ministry
+// of Finance's VAT white list on 2026-08-21 (NIP 7121761523): the registered
+// address is now ul. Obozowa 56/10, 01-423 Warszawa — the same address the
+// homepage's EducationalOrganization JSON-LD already publishes. NIP and REGON
+// were correct and are kept, as is the trading name.
+//
+// "zarejestrowaną" also becomes "zarejestrowana" — the original disagreed
+// grammatically with "firma"; since this clause is being rewritten anyway,
+// it is written correctly rather than reproducing the slip.
+export function rewriteDataControllerDetails(body) {
+  return body.replace(
+    /z siedzibą w Pruszkowie, ul\. Wokulskiego 10\/7 zarejestrowaną w Ewidencji Działalności Gospodarczej prowadzonej przez Prezydenta Miasta Pruszkowa pod numerem 16866,/,
+    "z siedzibą w Warszawie, ul. Obozowa 56/10, 01-423 Warszawa, zarejestrowana " +
+      "w Centralnej Ewidencji i Informacji o Działalności Gospodarczej (CEIDG),",
+  );
+}
+
 export function rewriteContactEmail(body) {
   return body
     .replace(/iza@naturalnamama\.pl/g, "kontakt@clauwi.pl")
@@ -363,6 +382,7 @@ export async function mirrorPage(slug, path) {
   body = stripInjectedSpam(body);
   body = unwrapDeadLinks(body);
   body = rewriteContactEmail(body);
+  body = rewriteDataControllerDetails(body);
   body = fillAltText(body);
   body = localizeAssetUrls(body);
 
