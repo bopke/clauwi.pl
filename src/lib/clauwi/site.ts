@@ -2,7 +2,10 @@
 // Extracted 1:1 from the live Kadence site so links/paths stay identical.
 
 export const CONTACT = {
-  email: "iza@naturalnamama.pl",
+  // The school's own address. Was iza@naturalnamama.pl (a different business
+  // of the owner's) until 2026-08-21 — anything user-facing goes here, and it
+  // is also the fallback recipient for course-booking notifications.
+  email: "kontakt@clauwi.pl",
   phone: "666 538 731",
   phoneHref: "tel:+48666538731",
   facebook: "https://www.facebook.com/ClauWi.szkola.noszenia",

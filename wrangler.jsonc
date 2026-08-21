@@ -34,7 +34,7 @@
 		// NOTE: both recipients currently point at the developer's own inbox
 		// for end-to-end e-mail testing. Swap to the client's real addresses
 		// before handover (they were kontakt@bopke.dev / kontakt2@bopke.dev
-		// earlier, and the site's own contact address is iza@naturalnamama.pl).
+		// earlier, and the site's own contact address is kontakt@clauwi.pl).
 		"CONTACT_FORM_TO": "kontakt@clauwi.pl",
 		"COURSE_ORGANIZER_EMAIL": "kontakt@clauwi.pl",
 		// Only needed while the app lives on staging. The code falls back to
