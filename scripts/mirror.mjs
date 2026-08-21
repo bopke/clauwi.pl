@@ -218,6 +218,32 @@ function altStemFor(src) {
 // the sentence still reads correctly without a link.
 const DEAD_LINK_HOSTS = [/^https?:\/\/clauwi\.kodu-kodu\.pl\b/i];
 
+// Points the site's e-mail links at the school's own address, kept in sync
+// with CONTACT.email in src/lib/clauwi/site.ts.
+//
+// Two different stale addresses are involved:
+//   * iza@naturalnamama.pl        — the owner's other business; the mirrored
+//                                   Kadence header links its mail icon here,
+//                                   on every page.
+//   * izabelaewabanach@gmail.com  — her personal address, printed in the
+//                                   contact page's own "Telefon / Email"
+//                                   block (both as href and as visible text).
+//
+// Scope is deliberately narrow:
+//   * only `mailto:` links are touched for the first address — it also appears
+//     as plain text inside published article copy, and rewriting an article is
+//     the client's call, not the pipeline's;
+//   * the second is replaced ONLY on the contact page. It also appears in
+//     polityka-prywatnosci, where it names the data controller for GDPR
+//     requests — that is a legal document and must not be edited here.
+export function rewriteContactEmail(body, slug) {
+  let out = body.replace(/mailto:iza@naturalnamama\.pl/g, "mailto:kontakt@clauwi.pl");
+  if (slug === "kontakt") {
+    out = out.replace(/izabelaewabanach@gmail\.com/g, "kontakt@clauwi.pl");
+  }
+  return out;
+}
+
 export function unwrapDeadLinks(body) {
   return body.replace(/<a\b([^>]*)href="([^"]+)"([^>]*)>([\s\S]*?)<\/a>/gi, (full, pre, href, post, text) =>
     DEAD_LINK_HOSTS.some((h) => h.test(href)) ? text : full,
@@ -333,6 +359,7 @@ export async function mirrorPage(slug, path) {
   body = rewriteContactFormAction(body);
   body = stripInjectedSpam(body);
   body = unwrapDeadLinks(body);
+  body = rewriteContactEmail(body, slug);
   body = fillAltText(body);
   body = localizeAssetUrls(body);
 
