@@ -229,19 +229,22 @@ const DEAD_LINK_HOSTS = [/^https?:\/\/clauwi\.kodu-kodu\.pl\b/i];
 //                                   contact page's own "Telefon / Email"
 //                                   block (both as href and as visible text).
 //
-// Scope is deliberately narrow:
-//   * only `mailto:` links are touched for the first address — it also appears
-//     as plain text inside published article copy, and rewriting an article is
-//     the client's call, not the pipeline's;
-//   * the second is replaced ONLY on the contact page. It also appears in
-//     polityka-prywatnosci, where it names the data controller for GDPR
-//     requests — that is a legal document and must not be edited here.
-export function rewriteContactEmail(body, slug) {
-  let out = body.replace(/mailto:iza@naturalnamama\.pl/g, "mailto:kontakt@clauwi.pl");
-  if (slug === "kontakt") {
-    out = out.replace(/izabelaewabanach@gmail\.com/g, "kontakt@clauwi.pl");
-  }
-  return out;
+// Scope:
+//   * the first address is replaced everywhere it appears — in `mailto:` links
+//     and in body copy. It shows up in one blog post ("Napisz do …, coś
+//     wymyślimy") and in that post's excerpt on the blog index, the category
+//     archive and the related-posts carousel; the client asked for all of them.
+//   * the second is likewise replaced everywhere. Note this includes
+//     polityka-prywatnosci, where it is the address given for exercising GDPR
+//     rights ("należy skontaktować się z administratorem danych pod adres
+//     email: …") — changed on the client's explicit instruction, since that
+//     inbox is the one they now monitor. The data controller named in the
+//     policy (Naturalnie Izabela Banach) is untouched; only the contact
+//     address changed.
+export function rewriteContactEmail(body) {
+  return body
+    .replace(/iza@naturalnamama\.pl/g, "kontakt@clauwi.pl")
+    .replace(/izabelaewabanach@gmail\.com/g, "kontakt@clauwi.pl");
 }
 
 export function unwrapDeadLinks(body) {
@@ -359,7 +362,7 @@ export async function mirrorPage(slug, path) {
   body = rewriteContactFormAction(body);
   body = stripInjectedSpam(body);
   body = unwrapDeadLinks(body);
-  body = rewriteContactEmail(body, slug);
+  body = rewriteContactEmail(body);
   body = fillAltText(body);
   body = localizeAssetUrls(body);
 
