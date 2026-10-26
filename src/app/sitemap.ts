@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { registry } from "@/legacy/registry";
+import { STATIC_PAGES } from "@/lib/clauwi/pages";
 import { REGION_META } from "@/lib/clauwi/advisors";
 import { listUpcomingCourses } from "@/lib/clauwi/courses-repo";
 import { getBlogPostMeta } from "@/lib/clauwi/blog-meta";
@@ -14,11 +14,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: BASE, changeFrequency: "weekly", priority: 1 },
   ];
 
-  // Mirrored static pages (blog posts frozen — low priority/rarely changes;
-  // core informational pages get a moderate priority).
-  for (const key of Object.keys(registry)) {
-    const isPost = !key.startsWith("strona-glowna") && !key.startsWith("category") && key !== "blog"
-      && !["o-nas", "kontakt", "opinie", "wsparcie-na-starcie", "konferencja-clauwi2025", "polityka-prywatnosci", "regulam-i-zasady-naboru"].includes(key);
+  // Static pages — blog posts are frozen (low priority, rarely change); the
+  // informational pages get a moderate priority.
+  for (const { key, kind } of STATIC_PAGES) {
+    const isPost = kind === "post";
     const post = getBlogPostMeta(key);
     entries.push({
       url: `${BASE}/${key}`,

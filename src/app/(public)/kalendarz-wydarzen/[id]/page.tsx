@@ -82,7 +82,7 @@ export default async function CourseDetailPage({
         ])}
       />
       <SiteHeader />
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <section className="mx-auto max-w-3xl px-4 py-16">
           <Link href="/kalendarz-wydarzen" className="text-sm text-ink/60 hover:text-brand">
             ← Wszystkie kursy

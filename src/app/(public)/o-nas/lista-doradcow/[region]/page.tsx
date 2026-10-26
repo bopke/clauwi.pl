@@ -58,7 +58,7 @@ export default async function RegionPage({
         ])}
       />
       <SiteHeader />
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <section className="mx-auto max-w-6xl px-4 py-16">
           <Link href="/o-nas/lista-doradcow" className="text-sm text-ink/60 hover:text-brand">
             ← Wszystkie województwa

@@ -39,7 +39,7 @@ export default async function ListaDoradcowPage() {
         ])}
       />
       <SiteHeader />
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <section className="mx-auto max-w-5xl px-4 py-16">
           <h1 className="text-center font-heading text-4xl font-medium uppercase text-brand md:text-5xl">
             Lista Aktywnych Doradców

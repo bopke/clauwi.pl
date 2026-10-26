@@ -12,7 +12,7 @@ export default function NotFound() {
   return (
     <div className="flex min-h-full flex-col">
       <SiteHeader />
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <section className="mx-auto max-w-2xl px-4 py-24 text-center">
           <p className="font-heading text-6xl font-medium text-brand">404</p>
           <h1 className="mt-4 font-heading text-3xl font-medium uppercase text-ink md:text-4xl">

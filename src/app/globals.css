@@ -136,3 +136,26 @@
     font-family: var(--font-heading);
   }
 }
+/*
+ * Base styles of the original WordPress (Kadence) theme, for the static pages
+ * rebuilt from it. Wrapped in :where() so any utility class on an element
+ * still overrides them.
+ */
+@layer components {
+  /* Links inside page content (PageShell's <main>). */
+  .page-content :where(a) {
+    color: #3182ce;
+  }
+  .page-content :where(a:hover, a:focus, a:active) {
+    color: #2b6cb0;
+  }
+
+  /* Flow content: 32px between blocks, none after the last one. */
+  .flow > :where(p, ul, ol, figure, blockquote, table, form, hr, .flow-block) {
+    margin-top: 0;
+    margin-bottom: 32px;
+  }
+  .flow > :where(p, ul, ol, figure, blockquote, table, form, hr, .flow-block):last-child {
+    margin-bottom: 0;
+  }
+}
