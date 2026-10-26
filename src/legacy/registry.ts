@@ -3,7 +3,6 @@
 // "home" (the "/" route) is handled separately by src/app/(public)/page.tsx —
 // everything else goes through the [...slug] catch-all route.
 
-import * as oNas from "./o-nas";
 import * as konferencjaClauwi2025 from "./konferencja-clauwi2025";
 import * as blog from "./blog";
 import * as siegnijPoSpelnienie from "./siegnij-po-spelnienie-marzen-dobro-wraca";
@@ -26,7 +25,6 @@ export type LegacyModule = {
 
 // Key = URL path with no leading/trailing slash (matches params.slug.join("/")).
 export const registry: Record<string, LegacyModule> = {
-  "o-nas": oNas,
   "konferencja-clauwi2025": konferencjaClauwi2025,
   blog,
   "siegnij-po-spelnienie-marzen-dobro-wraca": siegnijPoSpelnienie,
