@@ -15,7 +15,7 @@ export default function ZasadyNaboruPage() {
   return (
     <PageShell>
       <PageJsonLd pageKey={KEY} />
-      <Row className="bg-[#f4f4f4]" innerClassName="pt-[25px]">
+      <Row className="bg-[#f4f4f4]" innerClassName="flow-root pt-[25px]">
         <PageHeading>Zasady naboru na kursy</PageHeading>
         <ol className="mb-8 list-decimal pl-[34px]">
             <li>Kurs odbędzie się po potwierdzeniu uczestnictwa przez minimum 4 osoby.</li>
