@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import Script from "next/script";
 import { useTurnstile } from "./use-turnstile";
+import { FormStatusMessage } from "./form-status-message";
 
 const FIELD =
   "block min-h-10 w-full rounded-[3px] border-2 border-[#f2b6ab] bg-white px-3 py-2.5 text-[#2d3748] placeholder:text-[#718096] focus:outline-none";
@@ -16,37 +16,14 @@ const FIELD =
  */
 export function ContactForm() {
   const { containerRef } = useTurnstile();
-  const [status, setStatus] = useState<"ok" | "error" | null>(null);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const value = params.get("contact");
-    if (value !== "ok" && value !== "error") return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the status only exists in the URL after the redirect
-    setStatus(value);
-    // Drop the parameter so a refresh doesn't show the message again.
-    params.delete("contact");
-    const search = params.toString();
-    window.history.replaceState({}, "", window.location.pathname + (search ? `?${search}` : ""));
-  }, []);
-
   return (
     <>
       <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="lazyOnload" />
-      {status && (
-        <p
-          role="status"
-          className={
-            status === "ok"
-              ? "mb-4 rounded-[2px] bg-[#e6f4ea] px-4 py-3 text-[#1e4620]"
-              : "mb-4 rounded-[2px] bg-[#fdecea] px-4 py-3 text-[#611a15]"
-          }
-        >
-          {status === "ok"
-            ? "Dziękujemy! Wiadomość została wysłana."
-            : "Nie udało się wysłać wiadomości. Sprawdź, czy wszystkie pola są wypełnione, i spróbuj ponownie."}
-        </p>
-      )}
+      <FormStatusMessage
+        param="contact"
+        ok="Dziękujemy! Wiadomość została wysłana."
+        error="Nie udało się wysłać wiadomości. Sprawdź, czy wszystkie pola są wypełnione, i spróbuj ponownie."
+      />
       <form action="/api/contact" method="post" className="relative -mx-[5px] flex flex-wrap items-end text-left">
         <div className="mb-4 w-full px-[5px]">
           <input name="kb_field_0" type="text" placeholder="Imię" aria-label="Imię" autoComplete="name" required className={FIELD} />
