@@ -7,17 +7,19 @@ import { cn } from "@/lib/utils";
  */
 export function Row({
   children,
+  id,
   className,
   innerClassName,
   style,
 }: {
   children: React.ReactNode;
+  id?: string;
   className?: string;
   innerClassName?: string;
   style?: React.CSSProperties;
 }) {
   return (
-    <div className={className} style={style}>
+    <div id={id} className={className} style={style}>
       <div className={cn("mx-auto max-w-[1290px] px-6", innerClassName)}>{children}</div>
     </div>
   );

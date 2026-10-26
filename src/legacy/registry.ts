@@ -4,7 +4,6 @@
 // everything else goes through the [...slug] catch-all route.
 
 import * as oNas from "./o-nas";
-import * as systemKsztalcenia from "./strona-glowna/system-ksztalcenia";
 import * as kontakt from "./kontakt";
 import * as opinie from "./opinie";
 import * as wsparcieNaStarcie from "./wsparcie-na-starcie";
@@ -31,7 +30,6 @@ export type LegacyModule = {
 // Key = URL path with no leading/trailing slash (matches params.slug.join("/")).
 export const registry: Record<string, LegacyModule> = {
   "o-nas": oNas,
-  "strona-glowna/system-ksztalcenia": systemKsztalcenia,
   kontakt,
   opinie,
   "wsparcie-na-starcie": wsparcieNaStarcie,
