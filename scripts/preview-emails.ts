@@ -14,6 +14,7 @@ import { courseBookingConfirmedEmail, courseBookingCancelledEmail } from "../src
 import { courseBookingUpdatedEmail } from "../src/lib/clauwi/email-templates/course-booking-updated";
 import { courseBookingRemovedEmail } from "../src/lib/clauwi/email-templates/course-booking-removed";
 import { contactFormEmail } from "../src/lib/clauwi/email-templates/contact-form";
+import { opinionFormEmail } from "../src/lib/clauwi/email-templates/opinion-form";
 import { renderEmail } from "../src/lib/clauwi/email-templates/layout";
 
 const course = {
@@ -49,6 +50,12 @@ const templates = {
     name: "Marta Nowak",
     email: "marta@example.com",
     message: "Dzień dobry,\nczy planujecie kurs w Krakowie jesienią?\n\nPozdrawiam,\nMarta",
+  }),
+  "08-opinion-form": opinionFormEmail({
+    name: "Marta Nowak",
+    course: "Warszawa, listopad 2026",
+    email: "marta@example.com",
+    opinion: "Świetny kurs!\nDużo praktyki i wspaniała atmosfera.",
   }),
 };
 

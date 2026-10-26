@@ -6,6 +6,7 @@ import { courseBookingCancelledEmail, courseBookingConfirmedEmail } from "./emai
 import { courseBookingUpdatedEmail, type BookingChange } from "./email-templates/course-booking-updated";
 import { courseBookingRemovedEmail } from "./email-templates/course-booking-removed";
 import { contactFormEmail } from "./email-templates/contact-form";
+import { opinionFormEmail } from "./email-templates/opinion-form";
 import { renderEmail, resolveEmailBaseUrl, type EmailContent } from "./email-templates/layout";
 import { buildCourseIcs, icsFileName, type IcsMethod } from "./ics";
 import { formatRange } from "./time";
@@ -121,6 +122,22 @@ export async function sendContactEmail(submission: ContactSubmission): Promise<v
     to,
     content: contactFormEmail(submission),
     replyTo: { email: submission.email, name: submission.name },
+  });
+}
+
+type OpinionSubmission = { name: string; course: string; email: string; opinion: string };
+
+// Testimonial form on /opinie (src/app/api/opinion/route.ts) — same inbox as
+// the contact form; Reply-To is the author when they left an address.
+export async function sendOpinionEmail(submission: OpinionSubmission): Promise<void> {
+  const { env } = await getCloudflareContext({ async: true });
+  const to = env.CONTACT_FORM_TO;
+  if (!to) throw new Error("Brevo is not configured — missing CONTACT_FORM_TO");
+
+  await sendTemplate({
+    to,
+    content: opinionFormEmail(submission),
+    replyTo: submission.email ? { email: submission.email, name: submission.name || undefined } : undefined,
   });
 }
 

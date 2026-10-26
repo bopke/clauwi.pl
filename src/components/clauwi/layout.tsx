@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 /**
@@ -55,5 +56,39 @@ export function PageHeading({
     >
       {children}
     </Tag>
+  );
+}
+
+/**
+ * The theme's boxed content template (archives, the testimonials page, blog
+ * posts): vertical margin of 32px / 48px from 768px / 80px from 1025px, with
+ * the content in the standard container. Full-width bands inside it break
+ * out with `Bleed`.
+ */
+export function ContentArea({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("my-8 min-[768px]:my-12 min-[1025px]:my-20", className)}>
+      <div className="mx-auto max-w-[1290px] px-6">{children}</div>
+    </div>
+  );
+}
+
+/** Breaks a band out of the content container to the full viewport width. */
+export function Bleed({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={cn("relative left-1/2 w-screen -translate-x-1/2", className)}>{children}</div>;
+}
+
+/** "CLAUWI® > Page" trail, as the theme printed it above the content. */
+export function Breadcrumbs({ trail }: { trail: { label: string; href?: string }[] }) {
+  return (
+    <div>
+      <Link href="/">CLAUWI®</Link>
+      {trail.map((c, i) => (
+        <span key={i}>
+          {" > "}
+          {c.href ? <Link href={c.href}>{c.label}</Link> : c.label}
+        </span>
+      ))}
+    </div>
   );
 }
