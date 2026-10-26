@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Montserrat, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
+import { StagingBanner } from "@/components/clauwi/staging-banner";
 
 // Body / UI font — matches the live Kadence site (Montserrat).
 const montserrat = Montserrat({
@@ -62,7 +63,10 @@ export default function RootLayout({
       lang="pl"
       className={`${montserrat.variable} ${cormorant.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <StagingBanner />
+        {children}
+      </body>
     </html>
   );
 }

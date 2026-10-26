@@ -1,6 +1,20 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "clauwi",
+	/**
+   * Two environments:
+   *   - top level  = STAGING (default): `npm run deploy` → staging.clauwi.pl,
+   *     Worker "clauwi-staging", database clauwi-db-staging.
+   *   - env.prod   = PRODUCTION: `npm run deploy:prod` → clauwi.pl, Worker
+   *     "clauwi" (the name the live Worker has always had, so its secrets and
+   *     custom domains stay attached), database clauwi-db.
+   *
+   * vars, routes, d1_databases and r2_buckets are NOT inherited by env.prod —
+   * wrangler requires them to be repeated there. Keep both blocks in sync.
+   * Secrets are per Worker: set each one for both, e.g.
+   *   npx wrangler secret put BREVO_API_KEY            (staging)
+   *   npx wrangler secret put BREVO_API_KEY --env prod (production)
+   */
+	"name": "clauwi-staging",
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2026-06-26",
 	"compatibility_flags": [
@@ -27,30 +41,20 @@
    *
    * Values below were read back from the live Worker (version e7582c60,
    * 2026-08-20 20:02 UTC) so config and deployment now agree.
+   *
+   * Staging sends real e-mail, but its own notifications (contact form,
+   * organizer copy of bookings) go to a separate inbox so test traffic never
+   * lands in the client's.
    */
 	"vars": {
 		"BREVO_SENDER_EMAIL": "kontakt@clauwi.pl",
 		"BREVO_SENDER_NAME": "ClauWi®",
-		// NOTE: both recipients currently point at the developer's own inbox
-		// for end-to-end e-mail testing. Swap to the client's real addresses
-		// before handover (they were kontakt@bopke.dev / kontakt2@bopke.dev
-		// earlier, and the site's own contact address is kontakt@clauwi.pl).
-		"CONTACT_FORM_TO": "kontakt@clauwi.pl",
-		"COURSE_ORGANIZER_EMAIL": "kontakt@clauwi.pl",
-		// Only needed while the app lives on staging. The code falls back to
-		// the request's own host, so this can simply be deleted after the
-		// clauwi.pl cutover.
-		"EMAIL_BASE_URL": "https://staging.clauwi.pl"
+		"CONTACT_FORM_TO": "staging-kontakt@clauwi.pl",
+		"COURSE_ORGANIZER_EMAIL": "staging-kontakt@clauwi.pl"
 	},
 	"observability": {
 		"enabled": true
 	},
-	// STAGING domain while the real clauwi.pl cutover is pending — the apex
-	// already has DNS pointing at the live legacy WordPress host, so Workers
-	// Custom Domains can't attach there yet without first clearing those
-	// records (a deliberate, separate decision — see clauwi-rewrite-project
-	// memory). Swap back to clauwi.pl (custom_domain: true) when ready to cut
-	// over; `wrangler deploy` will provision the DNS record + certificate.
 	"routes": [
 		{
 			"pattern": "staging.clauwi.pl",
@@ -59,27 +63,26 @@
 	],
 	/**
    * D1 database binding. Access in server code via getCloudflareContext().env.DB.
-   * Run `npx wrangler d1 create clauwi-db` and paste the returned database_id
-   * below before deploying. Local dev works without a real id.
+   * Local dev (`next dev`, `db:migrate:local`) uses this top-level config.
    */
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "clauwi-db",
-			"database_id": "046af734-ae68-4958-9d75-7e479349b44d",
+			"database_name": "clauwi-db-staging",
+			"database_id": "9704a139-3cd4-403d-bc8a-95f6c5ca7443",
 			"migrations_dir": "migrations"
 		},
 		{
 			"binding": "clauwi_db",
-			"database_name": "clauwi-db",
-			"database_id": "046af734-ae68-4958-9d75-7e479349b44d",
+			"database_name": "clauwi-db-staging",
+			"database_id": "9704a139-3cd4-403d-bc8a-95f6c5ca7443",
 			"remote": true
 		}
 	],
 	/**
    * R2 bucket for migrated media (blog images, page assets from wp-content/uploads).
-   * Access via getCloudflareContext().env.MEDIA.
-   * Run `npx wrangler r2 bucket create clauwi-media` before deploying.
+   * Access via getCloudflareContext().env.MEDIA. The app only reads from it,
+   * so staging and production share the same bucket.
    * Local dev uses a simulated bucket under .wrangler/state — no remote bucket needed.
    */
 	"r2_buckets": [
@@ -87,5 +90,50 @@
 			"binding": "MEDIA",
 			"bucket_name": "clauwi-media"
 		}
-	]
+	],
+	"env": {
+		"prod": {
+			"name": "clauwi",
+			"vars": {
+				"BREVO_SENDER_EMAIL": "kontakt@clauwi.pl",
+				"BREVO_SENDER_NAME": "ClauWi®",
+				"CONTACT_FORM_TO": "kontakt@clauwi.pl",
+				"COURSE_ORGANIZER_EMAIL": "kontakt@clauwi.pl"
+			},
+			// `wrangler deploy` provisions the DNS record and certificate; it
+			// fails if another DNS record already holds the name.
+			"routes": [
+				{
+					"pattern": "clauwi.pl",
+					"custom_domain": true
+				},
+				// Redirected to the apex by a Cloudflare Redirect Rule, which runs
+				// before the Worker — it only needs to exist so DNS + TLS work.
+				{
+					"pattern": "www.clauwi.pl",
+					"custom_domain": true
+				}
+			],
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "clauwi-db",
+					"database_id": "046af734-ae68-4958-9d75-7e479349b44d",
+					"migrations_dir": "migrations"
+				},
+				{
+					"binding": "clauwi_db",
+					"database_name": "clauwi-db",
+					"database_id": "046af734-ae68-4958-9d75-7e479349b44d",
+					"remote": true
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "MEDIA",
+					"bucket_name": "clauwi-media"
+				}
+			]
+		}
+	}
 }
