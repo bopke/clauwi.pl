@@ -5,7 +5,6 @@
 
 import * as oNas from "./o-nas";
 import * as opinie from "./opinie";
-import * as wsparcieNaStarcie from "./wsparcie-na-starcie";
 import * as konferencjaClauwi2025 from "./konferencja-clauwi2025";
 import * as blog from "./blog";
 import * as siegnijPoSpelnienie from "./siegnij-po-spelnienie-marzen-dobro-wraca";
@@ -30,7 +29,6 @@ export type LegacyModule = {
 export const registry: Record<string, LegacyModule> = {
   "o-nas": oNas,
   opinie,
-  "wsparcie-na-starcie": wsparcieNaStarcie,
   "konferencja-clauwi2025": konferencjaClauwi2025,
   blog,
   "siegnij-po-spelnienie-marzen-dobro-wraca": siegnijPoSpelnienie,
