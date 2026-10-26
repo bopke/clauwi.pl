@@ -68,7 +68,8 @@ export function PageHeading({
 export function ContentArea({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={cn("my-8 min-[768px]:my-12 min-[1025px]:my-20", className)}>
-      <div className="mx-auto max-w-[1290px] px-6">{children}</div>
+      {/* flow-root: like the theme's clearfix, child margins stay inside instead of collapsing away. */}
+      <div className="mx-auto flow-root max-w-[1290px] px-6">{children}</div>
     </div>
   );
 }
