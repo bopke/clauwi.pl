@@ -162,7 +162,7 @@ export default function SystemKsztalceniaPage() {
   return (
     <PageShell>
       <PageJsonLd pageKey={KEY} />
-      <Row className="bg-[#f4f4f4]" innerClassName="pt-[25px]">
+      <Row className="bg-[#f4f4f4]" innerClassName="flow-root pt-[25px]">
         <div className="my-[35px]">
           <PageHeading className="my-0 mb-[29px] text-center">system kształcenia</PageHeading>
           <p
@@ -177,7 +177,7 @@ export default function SystemKsztalceniaPage() {
       <Row innerClassName="pb-[65px]">
         <Tabs tabs={TABS} />
       </Row>
-      <Row className="bg-[#f4f4f4]" innerClassName="pt-[25px]" id="uprawnienia">
+      <Row className="bg-[#f4f4f4]" innerClassName="flow-root pt-[25px]" id="uprawnienia">
         <div className="my-[35px]">
           <PageHeading className="my-0 mb-[50px] text-center">ważność uprawnień</PageHeading>
           <p className="text-[#b35755]">
