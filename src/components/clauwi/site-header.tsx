@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mail, Phone, Search, Menu, X } from "lucide-react";
+import { Mail, Phone, Menu, X } from "lucide-react";
 import { NAV, CONTACT } from "@/lib/clauwi/site";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,6 @@ const BAR_BG = "rgba(244, 180, 167, 0.94)";
 const NAV_TEXT = "#692D2C";
 const NAV_TEXT_ACTIVE = "#EDF2F7";
 const SOCIAL_ICON = "#2D3748";
-const SEARCH_ICON = "#4A5568";
 
 const DRAWER_BG = "#090c10";
 const DRAWER_TEXT = "#F7FAFC";
@@ -36,7 +35,7 @@ function FacebookIcon({ className }: { className?: string }) {
  * legacy header (`#masthead` on /o-nas) at 1440px:
  *
  *   row 1   min-height 80px, nav centred, links 17px/500 uppercase #692D2C
- *   row 2   height 45px, social icons 17px #2D3748 centred, search on the right
+ *   row 2   height 45px, social icons 17px #2D3748 centred
  *   bar     rgba(244,180,167,0.94), static (it scrolls away, not sticky)
  *   width   content capped at 1242px
  *   break   desktop layout from 1025px up — Kadence's own breakpoint, one
@@ -101,7 +100,7 @@ export function SiteHeader() {
         </button>
       </div>
 
-      {/* Row 2: social icons centred, search pinned right — same as legacy.
+      {/* Row 2: social icons centred — same as legacy.
           The bottom padding reproduces the legacy row's optical offset: its
           icons sit 5px above the row's true centre, and without this the two
           headers visibly disagree when moving between pages. */}
@@ -115,15 +114,6 @@ export function SiteHeader() {
         <a href={CONTACT.phoneHref} aria-label="Telefon" style={{ color: SOCIAL_ICON }}>
           <Phone className="size-[17px]" />
         </a>
-
-        <button
-          type="button"
-          aria-label="Szukaj"
-          className="absolute right-2 hidden min-[1025px]:inline-flex"
-          style={{ color: SEARCH_ICON }}
-        >
-          <Search className="size-[17px]" />
-        </button>
       </div>
 
       {/* Mobile full-screen drawer — matches the homepage's legacy Kadence drawer. */}
