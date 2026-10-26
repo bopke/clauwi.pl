@@ -5,13 +5,10 @@
 
 import * as oNas from "./o-nas";
 import * as systemKsztalcenia from "./strona-glowna/system-ksztalcenia";
-import * as zasadyNaboru from "./regulam-i-zasady-naboru";
-import * as faq from "./strona-glowna/faq";
 import * as kontakt from "./kontakt";
 import * as opinie from "./opinie";
 import * as wsparcieNaStarcie from "./wsparcie-na-starcie";
 import * as konferencjaClauwi2025 from "./konferencja-clauwi2025";
-import * as politykaPrywatnosci from "./polityka-prywatnosci";
 import * as blog from "./blog";
 import * as siegnijPoSpelnienie from "./siegnij-po-spelnienie-marzen-dobro-wraca";
 import * as nowaOdslonaClauwi from "./nowa-odslona-clauwi";
@@ -35,13 +32,10 @@ export type LegacyModule = {
 export const registry: Record<string, LegacyModule> = {
   "o-nas": oNas,
   "strona-glowna/system-ksztalcenia": systemKsztalcenia,
-  "regulam-i-zasady-naboru": zasadyNaboru,
-  "strona-glowna/faq": faq,
   kontakt,
   opinie,
   "wsparcie-na-starcie": wsparcieNaStarcie,
   "konferencja-clauwi2025": konferencjaClauwi2025,
-  "polityka-prywatnosci": politykaPrywatnosci,
   blog,
   "siegnij-po-spelnienie-marzen-dobro-wraca": siegnijPoSpelnienie,
   "nowa-odslona-clauwi": nowaOdslonaClauwi,
