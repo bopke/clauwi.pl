@@ -1,74 +1,23 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect } from "react";
 import { submitBookingAction, type BookingFormResult } from "@/app/(public)/kalendarz-wydarzen/actions";
-import { TURNSTILE_SITEKEY } from "@/lib/clauwi/turnstile-sitekey";
-
-declare global {
-  interface Window {
-    turnstile?: {
-      render: (container: HTMLElement, options: { sitekey: string; action?: string }) => string;
-      reset: (widgetId?: string) => void;
-      remove: (widgetId?: string) => void;
-    };
-  }
-}
+import { useTurnstile } from "./use-turnstile";
 
 const INITIAL: BookingFormResult = { ok: false, error: "" };
 
 export function BookingForm({ courseId, spotsLeft }: { courseId: string; spotsLeft: number }) {
-  const turnstileContainerRef = useRef<HTMLDivElement>(null);
-  const widgetIdRef = useRef<string | undefined>(undefined);
+  const { containerRef: turnstileContainerRef, reset: resetTurnstile } = useTurnstile();
   const [state, formAction, pending] = useActionState(async (_prev: BookingFormResult, formData: FormData) => {
     return submitBookingAction(formData);
   }, INITIAL);
-
-  // Turnstile's implicit `data-sitekey` auto-render only scans the DOM once,
-  // when its script first loads — it never picks up this form when it mounts
-  // later (e.g. inside the @modal overlay, added well after that initial
-  // scan). Render explicitly here instead, every time this component mounts,
-  // polling briefly in case the script (loaded lazily) isn't ready yet.
-  useEffect(() => {
-    let cancelled = false;
-    let interval: ReturnType<typeof setInterval> | undefined;
-
-    const render = () => {
-      if (cancelled || !turnstileContainerRef.current || widgetIdRef.current) return;
-      widgetIdRef.current = window.turnstile?.render(turnstileContainerRef.current, {
-        sitekey: TURNSTILE_SITEKEY,
-        action: "turnstile-spin-v1",
-      });
-    };
-
-    if (window.turnstile) {
-      render();
-    } else {
-      interval = setInterval(() => {
-        if (window.turnstile) {
-          clearInterval(interval);
-          render();
-        }
-      }, 100);
-    }
-
-    return () => {
-      cancelled = true;
-      if (interval) clearInterval(interval);
-      // Reset the ref (not just remove the widget) so a remount — e.g. React
-      // Strict Mode's dev-only double-invoke, or this form mounting again
-      // later — re-renders instead of seeing a stale id and skipping.
-      if (widgetIdRef.current) {
-        window.turnstile?.remove(widgetIdRef.current);
-        widgetIdRef.current = undefined;
-      }
-    };
-  }, []);
 
   // This form doesn't reload the page on error (useActionState keeps it
   // mounted), so a failed attempt would otherwise leave a stale, already-
   // consumed Turnstile token behind — reset the widget so retrying works.
   useEffect(() => {
-    if (!state.ok && state.error) window.turnstile?.reset(widgetIdRef.current);
+    if (!state.ok && state.error) resetTurnstile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the result changes
   }, [state]);
 
   if (spotsLeft === 0) {
