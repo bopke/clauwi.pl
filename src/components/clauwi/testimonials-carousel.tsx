@@ -7,11 +7,10 @@ import "./testimonials-carousel.css";
 import Link from "next/link";
 import type { Testimonial } from "@/lib/clauwi/testimonials";
 
-// Real carousel (replaces the homepage's old Kadence Testimonials block,
-// which only ever worked with Kadence's own stripped JS — see
-// splide-hydrator.tsx's history of a reverted attempt to hack it back to
-// life via the original markup). This renders fresh, self-contained slides
-// and mounts Splide directly, so it doesn't inherit any legacy CSS baggage.
+// The home page's testimonials carousel (Splide). Its look — square arrows,
+// faint dots, 32px between the paragraphs of a card — is the one it had on
+// the WordPress-mirrored home page, where the theme's CSS restyled it; see
+// testimonials-carousel.css.
 export function TestimonialsCarousel({ testimonials }: { testimonials: Testimonial[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -39,16 +38,16 @@ export function TestimonialsCarousel({ testimonials }: { testimonials: Testimoni
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="testimonials-carousel mx-auto max-w-3xl">
       <div ref={trackRef} className="splide" aria-label="Opinie o kursach ClauWi®">
         <div className="splide__track">
           <ul className="splide__list">
             {testimonials.map((t, i) => (
               <li key={i} className="splide__slide">
                 <div className="flex h-full flex-col rounded-[1px] border border-border bg-white p-6">
-                  <p className="font-heading text-lg font-medium text-brand">{t.title}</p>
-                  <p className="mt-3 flex-1 text-sm italic text-ink/80">&ldquo;{t.content}&rdquo;</p>
-                  <p className="mt-4 text-sm font-semibold text-ink">— {t.name}</p>
+                  <p className="mb-8 font-heading text-lg font-medium text-brand">{t.title}</p>
+                  <p className="mb-8 flex-1 text-sm italic text-ink/80">&ldquo;{t.content}&rdquo;</p>
+                  <p className="text-sm font-semibold text-ink">— {t.name}</p>
                 </div>
               </li>
             ))}

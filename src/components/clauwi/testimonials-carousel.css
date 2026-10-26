@@ -1,21 +1,42 @@
-/* Brand-color overrides for Splide's default theme (imported alongside this
-   in testimonials-carousel.tsx) — this carousel has no Kadence wrapper
-   classes around it, so it can't rely on the legacy base.css Splide rules
-   the blog carousel benefits from; needs its own complete styling. */
-#testimonials-carousel-slot .splide__arrow {
+/* Overrides for Splide's default theme (imported in testimonials-carousel.tsx),
+   reproducing how the WordPress theme styled this carousel: square 2em×3em
+   salmon arrows, 10px dots at 25% (the active one larger, at 75%). */
+.testimonials-carousel .splide__arrow {
+  width: 2em;
+  height: 3em;
+  border: 2px solid transparent;
+  border-radius: 3px;
   background: #cb8c7c;
   opacity: 1;
+  transition: opacity 0.4s ease-in-out;
 }
-#testimonials-carousel-slot .splide__arrow svg {
+.testimonials-carousel .splide__arrow svg {
+  width: 1em;
+  height: 1em;
   fill: #fff;
 }
-#testimonials-carousel-slot .splide__arrow:hover svg {
-  fill: #fff;
+.testimonials-carousel .splide__arrow--prev {
+  left: 1em;
 }
-#testimonials-carousel-slot .splide__pagination__page {
+.testimonials-carousel .splide__arrow--next {
+  right: 1em;
+}
+.testimonials-carousel .splide__pagination {
+  bottom: -1.5em;
+  padding: 0 1em;
+}
+.testimonials-carousel .splide__pagination li {
+  line-height: 1;
+}
+.testimonials-carousel .splide__pagination__page {
+  width: 10px;
+  height: 10px;
+  margin: 3px;
   background: #dfc0c0;
+  opacity: 0.25;
 }
-#testimonials-carousel-slot .splide__pagination__page.is-active {
+.testimonials-carousel .splide__pagination__page.is-active {
   background: #cb8c7c;
+  opacity: 0.75;
   transform: scale(1.2);
 }

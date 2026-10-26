@@ -12,15 +12,18 @@ import { cn } from "@/lib/utils";
 export function PageShell({
   children,
   footer = true,
+  overlayHeader = false,
   className,
 }: {
   children: React.ReactNode;
   footer?: boolean;
+  /** The home page's header, lying over its hero photo on desktop. */
+  overlayHeader?: boolean;
   className?: string;
 }) {
   return (
     <div className="flex min-h-full flex-col">
-      <SiteHeader />
+      <SiteHeader overlay={overlayHeader} />
       <main id="main" className={cn("page-content flex-1 font-heading text-[17px] leading-[27.2px] text-[#2D3748] [word-break:break-word]", className)}>{children}</main>
       {footer && <SiteFooter />}
     </div>

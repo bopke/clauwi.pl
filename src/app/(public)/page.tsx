@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import "@/legacy/base.css";
-import { LegacyPage } from "@/components/clauwi/legacy-page";
+import { PageShell } from "@/components/clauwi/page-shell";
 import { JsonLd } from "@/components/clauwi/json-ld";
+import { AboutSection, BlogSection, ConferenceBar, ContactSection, CoursesSection, HomeHero } from "@/components/clauwi/home/sections";
 import { CONTACT } from "@/lib/clauwi/site";
-import * as home from "@/legacy/home";
 
 export const metadata: Metadata = {
   title: "ClauWi® — Szkoła doradców noszenia",
@@ -35,9 +34,14 @@ const ORGANIZATION_JSON_LD = {
 
 export default function HomePage() {
   return (
-    <>
+    <PageShell overlayHeader>
       <JsonLd data={ORGANIZATION_JSON_LD} />
-      <LegacyPage css={home.css} html={home.html} bodyClass={home.bodyClass} />
-    </>
+      <HomeHero />
+      <ConferenceBar />
+      <AboutSection />
+      <CoursesSection />
+      <BlogSection />
+      <ContactSection />
+    </PageShell>
   );
 }

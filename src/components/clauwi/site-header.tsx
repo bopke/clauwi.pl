@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 // --global-palette1/8) so the mobile menu matches the homepage exactly.
 // Measured off the legacy header (see the comment on SiteHeader).
 const BAR_BG = "rgba(244, 180, 167, 0.94)";
+const BAR_BG_OVERLAY = "rgba(239, 166, 147, 0.76)";
 const NAV_TEXT = "#692D2C";
 const NAV_TEXT_ACTIVE = "#EDF2F7";
 const SOCIAL_ICON = "#2D3748";
@@ -71,7 +72,7 @@ function MenuIcon({ className }: { className?: string }) {
  *
  * If the legacy header ever changes, re-measure rather than eyeballing it.
  */
-export function SiteHeader() {
+export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   // Pick the single most specific nav item matching the current path (e.g.
@@ -92,7 +93,12 @@ export function SiteHeader() {
   }, [open]);
 
   return (
-    <header className="relative z-50" style={{ backgroundColor: BAR_BG }}>
+    // `overlay` is the home page's header: a more see-through bar that, from
+    // 1025px, lies over the hero photo instead of pushing it down.
+    <header
+      className={cn("relative z-50", overlay && "min-[1025px]:absolute min-[1025px]:inset-x-0 min-[1025px]:top-0")}
+      style={{ backgroundColor: overlay ? BAR_BG_OVERLAY : BAR_BG }}
+    >
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-1.5 focus:top-1.5 focus:z-[100001] focus:bg-white focus:px-6 focus:py-4 focus:text-sm focus:font-bold focus:text-[#21759b]"
