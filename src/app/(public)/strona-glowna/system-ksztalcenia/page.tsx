@@ -23,9 +23,12 @@ const TABS: TabItem[] = [
                   <p><strong>2. Kurs przeznaczony jest dla osób</strong>, które:&nbsp;</p>
                   <ul><li>pragną propagować prawidłowe noszenie dzieci w chustach wiązanych (pasjonaci noszenia, bez wykształcenia medycznego)</li>
                     <li>pragną podnieść swoje kwalifikacje</li>
-                    <li>nie mają doświadczenia chustowego, ale na co dzień zawodowo mają kontakt z małymi dziećmi i z rodzicami (fizjoterapeuci, położne, lekarze)</li></ul>
+                    <li>nie mają doświadczenia chustowego, ale na co dzień zawodowo mają kontakt z małymi dziećmi i z rodzicami
+                    (fizjoterapeuci, położne, lekarze)</li></ul>
                   <p><strong>3.</strong>&nbsp;<strong>Uprawnienia po ukończeniu kursu</strong>:&nbsp;</p>
-                  <ul><li>Uczestnik ma uprawnienia do prowadzenia zajęć indywidualnych z rodzicami oraz spotkań informacyjnych na temat noszenia dla rodziców oraz personelu fachowego. Osoby, które posiadają umiejętności prowadzenia zajęć grupowych mogą po tym kursie prowadzić również małe grupy warsztatowe.</li>
+                  <ul><li>Uczestnik ma uprawnienia do prowadzenia zajęć indywidualnych z rodzicami oraz spotkań informacyjnych
+                  na temat noszenia dla rodziców oraz personelu fachowego. Osoby, które posiadają umiejętności prowadzenia zajęć
+                  grupowych mogą po tym kursie prowadzić również małe grupy warsztatowe.</li>
                     <li>Uczestnik po pozytywnym ukończeniu kursu otrzymuje zaświadczenie oraz tytuł&nbsp;<strong>Doradcy Noszenia ClauWi®.&nbsp;</strong></li>
                     <li>Uprawnienia są ważne dwa lata od wydania zaświadczenia.</li></ul>
                   <p><strong>4. Ogólny zarys programu szkoleniowego:</strong></p>
@@ -56,7 +59,18 @@ const TABS: TabItem[] = [
         <ol><li><strong>Czas trwania:</strong> 35 godzin szkoleniowych ( obszerny blok zajęć praktycznych), zajęcia piątek-niedziela</li>
                     <li>Kurs przeznaczony jest <strong>dla</strong> osób, które ukończyły kurs podstawowy i posiadają tytuł Doradcy Noszenia ClauWi®</li>
                     <li><strong>Uprawnienia</strong> po ukończeniu kursu: uczestnik może rozpocząć proces certyfikacji</li>
-                    <li>Ogólny <strong>zarys</strong> programu szkoleniowego:<br />* Pogłębienie <strong>metodyki</strong> prowadzenia zajęć z rodzicami, techniki prowadzenia zajęć.<br />* <strong>Praca rozwojowa w grupie</strong> z zadaniami domowymi z Kursu podstawowego.<br />* Sposoby prawidłowej stymulacji niemowlęcia poprzez zabawę i techniki <strong>naturalnej pielęgnacji</strong> z uwzględnieniem etapu rozwojowego: sposoby bezpiecznego przenoszenia, przekazywania sobie dziecka przez rodziców, wykonywania podstawowych czynności pielęgnacyjnych<br />* Noszenie dzieci <strong>z wyzwaniami rozwojowymi</strong> – strona fizyczna oraz emocjonalna:<br />wcześniaki, tracheotomia, stomia, zespół Downa, mukowiscydoza, sondy, monitorowanie, zaburzenia trawienia, podwyższone i obniżone napięcie mięśniowe, dzieci z rozszczepem wargi i podniebienia, dzieci spastyczne, AZS, dermatoza itd. <br />* Noszenie <strong>w sytuacjach szczególnych</strong> dla rodziców: cesarskie cięcie, problemy z kręgosłupem, depresja poporodowa, wózek inwalidzki.<br />* <strong>Praktyczna nauka wiązań</strong>: powtórzenie wiązań z kursu podstawowego oraz nowe wiązania (duża część kursu): plecak z koszulką, plecak z krzyżem, kanga z chusty długiej, kangur na biodrze, siodełko. <br />* Dobór <strong>nosideł</strong>, obszerny blok praktyczny</li>
+                    <li>Ogólny <strong>zarys</strong> programu szkoleniowego:<br />* Pogłębienie <strong>metodyki</strong> prowadzenia
+                    zajęć z rodzicami, techniki prowadzenia zajęć.<br />* <strong>Praca rozwojowa w grupie</strong> z zadaniami
+                    domowymi z Kursu podstawowego.<br />* Sposoby prawidłowej stymulacji niemowlęcia poprzez zabawę i techniki <strong>naturalnej
+                    pielęgnacji</strong> z uwzględnieniem etapu rozwojowego: sposoby bezpiecznego przenoszenia, przekazywania
+                    sobie dziecka przez rodziców, wykonywania podstawowych czynności pielęgnacyjnych<br />* Noszenie dzieci <strong>z
+                    wyzwaniami rozwojowymi</strong> – strona fizyczna oraz emocjonalna:<br />wcześniaki, tracheotomia, stomia,
+                    zespół Downa, mukowiscydoza, sondy, monitorowanie, zaburzenia trawienia, podwyższone i obniżone napięcie
+                    mięśniowe, dzieci z rozszczepem wargi i podniebienia, dzieci spastyczne, AZS, dermatoza itd. <br />* Noszenie <strong>w
+                    sytuacjach szczególnych</strong> dla rodziców: cesarskie cięcie, problemy z kręgosłupem, depresja poporodowa,
+                    wózek inwalidzki.<br />* <strong>Praktyczna nauka wiązań</strong>: powtórzenie wiązań z kursu podstawowego
+                    oraz nowe wiązania (duża część kursu): plecak z koszulką, plecak z krzyżem, kanga z chusty długiej, kangur na
+                    biodrze, siodełko. <br />* Dobór <strong>nosideł</strong>, obszerny blok praktyczny</li>
                     <li>Kurs zaawansowany zawiera w sobie refresh.</li></ol>
                   <p>Cena kursu to 2 200 zł.</p>
       </div>
@@ -67,14 +81,20 @@ const TABS: TabItem[] = [
     title: "Certyfikat",
     content: (
       <div className="flow py-6">
-        <p>O&nbsp;<strong>Certyfikat i tytuł Certyfikowanego Doradcy Noszenia ClauWi®</strong>&nbsp;może ubiegać się osoba, która ukończyła&nbsp;<strong>Kurs zaawansowany</strong>. Każdy uczestnik tego szkolenia otrzymuje komplet pytań egzaminacyjnych.</p>
-                  <ul><li>Aby otrzymać&nbsp;<strong>Certyfikat ClauWi®</strong>&nbsp;należy w ciągu&nbsp;<strong>3 miesięcy</strong>&nbsp;<strong>od ukończenia Kursu zaawansowanego</strong>&nbsp;przedłożyć wskazanemu trenerowi opracowaną samodzielnie pracę egzaminacyjną. Przedłużenie tego terminu może nastąpić jedynie za pisemną zgodą Szkoły ClauWi®.</li>
+        <p>O&nbsp;<strong>Certyfikat i tytuł Certyfikowanego Doradcy Noszenia ClauWi®</strong>&nbsp;może ubiegać się
+        osoba, która ukończyła&nbsp;<strong>Kurs zaawansowany</strong>. Każdy uczestnik tego szkolenia otrzymuje
+        komplet pytań egzaminacyjnych.</p>
+                  <ul><li>Aby otrzymać&nbsp;<strong>Certyfikat ClauWi®</strong>&nbsp;należy w ciągu&nbsp;<strong>3 miesięcy</strong>&nbsp;<strong>od
+                  ukończenia Kursu zaawansowanego</strong>&nbsp;przedłożyć wskazanemu trenerowi opracowaną samodzielnie pracę
+                  egzaminacyjną. Przedłużenie tego terminu może nastąpić jedynie za pisemną zgodą Szkoły ClauWi®.</li>
                     <li>Praca zostanie zweryfikowana w ciągu&nbsp;<strong>3 miesięcy</strong>&nbsp;od momentu jej przedłożenia.&nbsp;</li></ul>
-                  <p>Doradca otrzymuje szczegółowe uwagi do swojego opracowania. Dopuszcza się składanie drobnych poprawek oraz uzupełnień do pracy egzaminacyjnej, o ile ogólny poziom pracy jest zadowalający.</p>
+                  <p>Doradca otrzymuje szczegółowe uwagi do swojego opracowania. Dopuszcza się składanie drobnych poprawek oraz
+                  uzupełnień do pracy egzaminacyjnej, o ile ogólny poziom pracy jest zadowalający.</p>
                   <p>Poprawioną wersję pracy należy przesłać do trenera w ciągu&nbsp;<strong>30 dni</strong>.</p>
                   <ul><li>Po zaakceptowaniu pracy Doradca otrzymuje tytuł&nbsp;<strong>Certyfikowanego Doradcy Noszenia ClauWi®</strong></li></ul>
                   <p><strong>Opłata</strong></p>
-                  <p>Koszt wydania Certyfikatu wynosi 400 zł. Opłatę należy uiścić w momencie składania pracy certyfikacyjnej w ClauWi®. Jest to warunkiem rozpoczęcia jej weryfikacji.</p>
+                  <p>Koszt wydania Certyfikatu wynosi 400 zł. Opłatę należy uiścić w momencie składania pracy certyfikacyjnej w
+                  ClauWi®. Jest to warunkiem rozpoczęcia jej weryfikacji.</p>
       </div>
     ),
   },
@@ -83,9 +103,18 @@ const TABS: TabItem[] = [
     title: "Refresh",
     content: (
       <div className="flow">
-        <p>Doradcy Noszenia Clauwi® po&nbsp;<strong>Kursie podstawowym</strong>&nbsp;oraz po&nbsp;<strong>Kursie zaawansowanym</strong>&nbsp;zobowiązani są do udziału w jednodniowych&nbsp;<strong>Spotkaniach Doszkalających</strong>&nbsp;“Refresh” organizowanych przez Szkołę Noszenia ClauWi® w poszczególnych regionach Polski lub online.</p>
-          <p>W celu zachowania uprawnień Doradca będzie się doszkalał n<strong>ie rzadziej niż raz na 2 lata</strong>. Jeśli organizator wyrazi zgodę, Doradca może wziąć udział w Spotkaniu Doszkalającym “Refresh” również w innym regionie. Podczas Spotkań aktualizowana i weryfikowana będzie głównie praktyczna umiejętność wykonywania poszczególnych wiązań i przekazywane informacje niezbędne do wykonywania pracy Doradcy Noszenia ClauWi®.</p>
-          <p>Brak terminowego udziału w Spotkaniu Doszkalającym “Refresh” skutkuje usunięciem danych z listy rekomandowanych doradców ClauWi, oraz odebraniem dostępu do doradczej grupy wsparcia. Aby przywrócić uprawnienia w ciągu roku od ich wygaśnięcia wystarczy ukończyć “Refresh”, natomiast jeśli minie więcej niż rok – konieczne będzie ponowne ukończenie kursu podstawowego. Można w takiej sytuacji ubiegac się o obniżkę ceny kursu o 50%.</p>
+        <p>Doradcy Noszenia Clauwi® po&nbsp;<strong>Kursie podstawowym</strong>&nbsp;oraz po&nbsp;<strong>Kursie
+        zaawansowanym</strong>&nbsp;zobowiązani są do udziału w jednodniowych&nbsp;<strong>Spotkaniach Doszkalających</strong>&nbsp;“Refresh”
+        organizowanych przez Szkołę Noszenia ClauWi® w poszczególnych regionach Polski lub online.</p>
+          <p>W celu zachowania uprawnień Doradca będzie się doszkalał n<strong>ie rzadziej niż raz na 2 lata</strong>.
+          Jeśli organizator wyrazi zgodę, Doradca może wziąć udział w Spotkaniu Doszkalającym “Refresh” również w innym
+          regionie. Podczas Spotkań aktualizowana i weryfikowana będzie głównie praktyczna umiejętność wykonywania
+          poszczególnych wiązań i przekazywane informacje niezbędne do wykonywania pracy Doradcy Noszenia ClauWi®.</p>
+          <p>Brak terminowego udziału w Spotkaniu Doszkalającym “Refresh” skutkuje usunięciem danych z listy
+          rekomandowanych doradców ClauWi, oraz odebraniem dostępu do doradczej grupy wsparcia. Aby przywrócić
+          uprawnienia w ciągu roku od ich wygaśnięcia wystarczy ukończyć “Refresh”, natomiast jeśli minie więcej niż rok
+          – konieczne będzie ponowne ukończenie kursu podstawowego. Można w takiej sytuacji ubiegac się o obniżkę ceny
+          kursu o 50%.</p>
       </div>
     ),
   },
@@ -122,7 +151,8 @@ const TABS: TabItem[] = [
                 <li>nóżki od kolan, ud wykonane z miekkiego materiału</li></ul></li></ul>
           <p>Instrukcję wypełnienia lalki możemy podać na życzenie.</p>
           <ul><li>ewentualnie swojej ulubionej chusty wiązanej, kółkowej, nosidła</li></ul>
-          <p>Dla osób nie posiadających lalki lub chust zapewniamy na czas kursu odpowiednią lalkę i chusty do ćwiczeń. Jednak najlepiej posiadać swój sprzęt, aby bezpośrednio po kursie mieć na czym pracować.&nbsp;</p>
+          <p>Dla osób nie posiadających lalki lub chust zapewniamy na czas kursu odpowiednią lalkę i chusty do ćwiczeń.
+          Jednak najlepiej posiadać swój sprzęt, aby bezpośrednio po kursie mieć na czym pracować.&nbsp;</p>
       </div>
     ),
   },
@@ -139,7 +169,8 @@ export default function SystemKsztalceniaPage() {
             className="text-[16px] font-light uppercase leading-[25.6px] tracking-[0.3px] text-[#b35755]"
             style={{ fontFamily: SYSTEM_FONT }}
           >
-            Szkoła Noszenia ClauWi® proponuje kompleksowy system kształcenia w zakresie noszenia dzieci w chustach wiązanych i oferuje trzy poziomy ścieżki doradczej.<br />
+            Szkoła Noszenia ClauWi® proponuje kompleksowy system kształcenia w zakresie noszenia dzieci w chustach
+            wiązanych i oferuje trzy poziomy ścieżki doradczej.<br />
           </p>
         </div>
       </Row>
@@ -150,7 +181,20 @@ export default function SystemKsztalceniaPage() {
         <div className="my-[35px]">
           <PageHeading className="my-0 mb-[50px] text-center">ważność uprawnień</PageHeading>
           <p className="text-[#b35755]">
-            Doradca Noszenia ClauWi® zobowiązany jest do stałego podnoszenia swoich kwalifikacji i utrzymywania prowadzonego doradztwa na wysokim poziomie. W tym celu konieczna jest stała&nbsp;<strong>aktualizacja</strong>&nbsp;oraz&nbsp;<strong>weryfikacja</strong>&nbsp;wiedzy Doradcy.&nbsp;<br /><br /><strong>Certyfikat ClauWi®</strong>&nbsp;ważny jest <strong>2 lata</strong> od momentu jego wydania. W celu przedłużenia ważności Certyfikatu Doradca Noszenia zobowiązany jest do udziału w Konferencji Doszkalającej organizowanej przez Szkołę Noszenia ClauWi® w Polsce. Doradca może również wziąć udział w Konferencji Doszkalającej organizowanej przez Szkołę ClauWi® za granicą. Konferencje będą odbywać się raz na dwa lub trzy lata, w zależności od potrzeb.<br /><br />Doradcy Noszenia Clauwi® po&nbsp;<strong>Kursie podstawowym</strong>&nbsp;oraz po&nbsp;<strong>Kursie zaawansowanym</strong>&nbsp;zobowiązani są do udziału w jednodniowych&nbsp;<strong>Spotkaniach Doszkalających</strong>&nbsp;organizowanych przez Szkołę Noszenia ClauWi® w poszczególnych regionach Polski. W celu zachowania uprawnień Doradca będzie się doszkalał nie rzadziej niż <strong>raz na 2 lata</strong>. Jeśli organizator wyrazi zgodę, Doradca może wziąć udział w Spotkaniu Doszkalającym również w innym regionie. Podczas Spotkań aktualizowana i weryfikowana będzie głównie praktyczna umiejętność wykonywania poszczególnych wiązań i przekazywane informacje niezbędne do wykonywania pracy Doradcy Noszenia ClauWi®.<br />
+            Doradca Noszenia ClauWi® zobowiązany jest do stałego podnoszenia swoich kwalifikacji i utrzymywania
+            prowadzonego doradztwa na wysokim poziomie. W tym celu konieczna jest stała&nbsp;<strong>aktualizacja</strong>&nbsp;oraz&nbsp;<strong>weryfikacja</strong>&nbsp;wiedzy
+            Doradcy.&nbsp;<br /><br /><strong>Certyfikat ClauWi®</strong>&nbsp;ważny jest <strong>2 lata</strong> od
+            momentu jego wydania. W celu przedłużenia ważności Certyfikatu Doradca Noszenia zobowiązany jest do udziału w
+            Konferencji Doszkalającej organizowanej przez Szkołę Noszenia ClauWi® w Polsce. Doradca może również wziąć
+            udział w Konferencji Doszkalającej organizowanej przez Szkołę ClauWi® za granicą. Konferencje będą odbywać się
+            raz na dwa lub trzy lata, w zależności od potrzeb.<br /><br />Doradcy Noszenia Clauwi® po&nbsp;<strong>Kursie
+            podstawowym</strong>&nbsp;oraz po&nbsp;<strong>Kursie zaawansowanym</strong>&nbsp;zobowiązani są do udziału w
+            jednodniowych&nbsp;<strong>Spotkaniach Doszkalających</strong>&nbsp;organizowanych przez Szkołę Noszenia
+            ClauWi® w poszczególnych regionach Polski. W celu zachowania uprawnień Doradca będzie się doszkalał nie
+            rzadziej niż <strong>raz na 2 lata</strong>. Jeśli organizator wyrazi zgodę, Doradca może wziąć udział w
+            Spotkaniu Doszkalającym również w innym regionie. Podczas Spotkań aktualizowana i weryfikowana będzie głównie
+            praktyczna umiejętność wykonywania poszczególnych wiązań i przekazywane informacje niezbędne do wykonywania
+            pracy Doradcy Noszenia ClauWi®.<br />
           </p>
         </div>
       </Row>
