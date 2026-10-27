@@ -4,12 +4,13 @@
 // AdminApp.tsx, for readability — course CRUD plus per-course booking
 // management.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TYPE_SUGGESTIONS } from "@/lib/clauwi/courses";
 import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus } from "@/lib/clauwi/courses";
 import {
   createCourseAction, deleteCourseAction, getCoursesAdminAction, updateCourseAction,
   getBookingsForCourseAction, updateBookingStatusAction, updateBookingAction, deleteBookingAction,
+  getUnseenBookingCountsAction, markCourseSeenAction,
 } from "@/app/admin/actions";
 
 const coll = new Intl.Collator("pl");
@@ -242,13 +243,28 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
   const [pendingStatus, setPendingStatus] = useState<{ booking: CourseBooking; status: CourseBookingStatus } | null>(null);
   const [editing, setEditing] = useState<CourseBooking | null>(null);
   const [delTarget, setDelTarget] = useState<CourseBooking | null>(null);
+  // When this admin last opened the list before now ("" until known, null if
+  // never) — bookings created after it get the "nowe" mark for this visit.
+  const [seenBefore, setSeenBefore] = useState<string | null | "">("");
 
   const refresh = useCallback(async () => {
     setBookings(await getBookingsForCourseAction(course.id));
     setLoading(false);
   }, [course.id]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  // Marking as seen must happen once per opening: a second call (React runs
+  // effects twice in development) would return the time the first just wrote.
+  const markedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (markedFor.current !== course.id) {
+      markedFor.current = course.id;
+      markCourseSeenAction(course.id).then(setSeenBefore, () => setSeenBefore(""));
+    }
+    refresh();
+  }, [course.id, refresh]);
+
+  const isNew = (b: CourseBooking) => seenBefore !== "" && (seenBefore === null || b.createdAt > seenBefore);
+  const newCount = bookings.filter(isNew).length;
 
   async function applyStatus(id: string, status: CourseBookingStatus, notify: boolean) {
     setPendingStatus(null);
@@ -305,6 +321,7 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
         <div className="adm-sheet__body">
           <p className="adm-card__sub">
             Zajęte miejsca: {totalPersons} / {course.capacity}
+            {newCount > 0 && <> · <span className="adm-newbadge">{newCount === 1 ? "1 nowe zgłoszenie" : newCount < 5 ? `${newCount} nowe zgłoszenia` : `${newCount} nowych zgłoszeń`}</span> od Twojej ostatniej wizyty</>}
           </p>
           {loading ? (
             <p className="adm-card__sub">Wczytywanie…</p>
@@ -318,9 +335,10 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
                 </thead>
                 <tbody>
                   {bookings.map((b) => (
-                    <tr key={b.id}>
+                    <tr key={b.id} className={isNew(b) ? "adm-row--new" : undefined}>
                       <td className="adm-td-name">
                         {b.firstName} {b.lastName}
+                        {isNew(b) && <> <span className="adm-newbadge">nowe</span></>}
                         <div className="adm-td-addr">zgoda RODO: {b.gdprConsent ? "tak" : "—"}</div>
                         {b.message && <div className="adm-td-addr">„{b.message}”</div>}
                       </td>
@@ -402,18 +420,35 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
   );
 }
 
-export function CoursesTab({ toast }: { toast: (m: string) => void }) {
+export function CoursesTab({ toast, onUnseenChange }: { toast: (m: string) => void; onUnseenChange?: (counts: Record<string, number>) => void }) {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [unseen, setUnseen] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [editing, setEditing] = useState<Editing>(null);
   const [delTarget, setDelTarget] = useState<Course | null>(null);
   const [bookingsFor, setBookingsFor] = useState<Course | null>(null);
 
+  const refreshUnseen = useCallback(async () => {
+    try {
+      const counts = await getUnseenBookingCountsAction();
+      setUnseen(counts);
+      onUnseenChange?.(counts);
+    } catch { /* the marks are a convenience — never block the list on them */ }
+  }, [onUnseenChange]);
+
   const refresh = useCallback(async () => {
     try { setCourses(await getCoursesAdminAction()); } finally { setLoading(false); }
-  }, []);
+    await refreshUnseen();
+  }, [refreshUnseen]);
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Bookings arrive while the panel sits open in a tab — recount on return.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") refreshUnseen(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refreshUnseen]);
 
   const view = useMemo(() => {
     let arr = courses.slice();
@@ -472,6 +507,14 @@ export function CoursesTab({ toast }: { toast: (m: string) => void }) {
               <tr key={c.id}>
                 <td className="adm-td-name">
                   {c.name}
+                  {unseen[c.id] > 0 && (
+                    <>
+                      {" "}
+                      <button type="button" className="adm-newbadge adm-newbadge--btn" title="Nowe zgłoszenia od Twojej ostatniej wizyty — kliknij, aby zobaczyć" onClick={() => setBookingsFor(c)}>
+                        {unseen[c.id]} {unseen[c.id] === 1 ? "nowe zgłoszenie" : unseen[c.id] < 5 ? "nowe zgłoszenia" : "nowych zgłoszeń"}
+                      </button>
+                    </>
+                  )}
                   {!c.active && <div><span className="adm-statusbadge adm-statusbadge--inactive">nieaktywny</span></div>}
                 </td>
                 <td><span className="adm-statusbadge adm-statusbadge--level">{c.type}</span></td>
@@ -496,7 +539,7 @@ export function CoursesTab({ toast }: { toast: (m: string) => void }) {
       </div>
 
       {editing && <CourseForm initial={editing === "new" ? null : editing} onSave={save} onClose={() => setEditing(null)} />}
-      {bookingsFor && <BookingsPanel course={bookingsFor} onClose={() => setBookingsFor(null)} toast={toast} />}
+      {bookingsFor && <BookingsPanel course={bookingsFor} onClose={() => { setBookingsFor(null); refreshUnseen(); }} toast={toast} />}
       {delTarget && (
         <Confirm
           title="Usunąć kurs?"

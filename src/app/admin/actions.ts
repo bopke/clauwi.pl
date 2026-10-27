@@ -7,7 +7,7 @@ import type { AllowEntry, Advisor } from "@/lib/clauwi/advisors";
 import {
   adminListCourses, createCourse, getCourseById, removeCourse, updateCourse,
   adminListBookingsForCourse, updateBookingStatus, removeBooking, adminGetBookingWithCourse,
-  adminUpdateBooking, getCourseById as getCourse,
+  adminUpdateBooking, getCourseById as getCourse, adminUnseenBookingCounts, markCourseSeen,
 } from "@/lib/clauwi/courses-repo";
 import { sendBookingStatusEmail, sendBookingUpdatedEmail, sendBookingRemovedEmail } from "@/lib/clauwi/brevo";
 import { BOOKING_FIELD_LABELS } from "@/lib/clauwi/courses";
@@ -102,6 +102,18 @@ export async function deleteCourseAction(id: string): Promise<void> {
 }
 
 // ----- Course bookings (admin view) -----
+
+/** Bookings each course got since the signed-in admin last opened its list, keyed by course id. */
+export async function getUnseenBookingCountsAction(): Promise<Record<string, number>> {
+  const me = await requireAdmin();
+  return adminUnseenBookingCounts(me);
+}
+
+/** Called when the admin opens a course's bookings; returns when they last looked before (null: never). */
+export async function markCourseSeenAction(courseId: string): Promise<string | null> {
+  const me = await requireAdmin();
+  return markCourseSeen(me, courseId);
+}
 
 export async function getBookingsForCourseAction(courseId: string): Promise<CourseBooking[]> {
   await requireAdmin();

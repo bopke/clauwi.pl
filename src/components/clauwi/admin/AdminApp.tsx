@@ -11,7 +11,7 @@ import { AdvisorUtil, LEVEL_SUGGESTIONS, REGION_META } from "@/lib/clauwi/adviso
 import type { Advisor, AllowEntry } from "@/lib/clauwi/advisors";
 import {
   addAllowAction, createAdvisorAction, deleteAdvisorAction, getAdvisorsAdminAction,
-  getAllowlistAction, removeAllowAction, signOutAction, updateAdvisorAction,
+  getAllowlistAction, removeAllowAction, signOutAction, updateAdvisorAction, getUnseenBookingCountsAction,
 } from "@/app/admin/actions";
 import { CoursesTab } from "./CoursesTab";
 import "./admin.css";
@@ -386,6 +386,19 @@ export function AdminApp({ user }: { user: AdminUser }) {
   const [tab, setTab] = useState<"doradcy" | "kursy" | "dostep">("doradcy");
   const [menu, setMenu] = useState(false);
   const [toast, toastNode] = useToast();
+  // Bookings no one has looked at yet (for this admin), shown on the "Kursy"
+  // tab so they're noticed from the other tabs too.
+  const [unseenTotal, setUnseenTotal] = useState(0);
+  const onUnseenChange = useCallback((counts: Record<string, number>) => {
+    setUnseenTotal(Object.values(counts).reduce((a, b) => a + b, 0));
+  }, []);
+  useEffect(() => {
+    const load = () => getUnseenBookingCountsAction().then(onUnseenChange, () => {});
+    load();
+    const onVisible = () => { if (document.visibilityState === "visible") load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [onUnseenChange]);
 
   const initial = (user.name || user.email)[0]?.toUpperCase() || "?";
 
@@ -399,7 +412,10 @@ export function AdminApp({ user }: { user: AdminUser }) {
         </div>
         <nav className="adm-tabs">
           <button className={tab === "doradcy" ? "is-active" : ""} onClick={() => setTab("doradcy")}>Doradcy</button>
-          <button className={tab === "kursy" ? "is-active" : ""} onClick={() => setTab("kursy")}>Kursy</button>
+          <button className={tab === "kursy" ? "is-active" : ""} onClick={() => setTab("kursy")}>
+            Kursy
+            {unseenTotal > 0 && <span className="adm-tabs__count" title="Nowe zgłoszenia od Twojej ostatniej wizyty">{unseenTotal}</span>}
+          </button>
           <button className={tab === "dostep" ? "is-active" : ""} onClick={() => setTab("dostep")}>Dostęp</button>
         </nav>
         <div className="adm-user" onClick={() => setMenu((m) => !m)}>
@@ -438,7 +454,7 @@ export function AdminApp({ user }: { user: AdminUser }) {
         {tab === "doradcy" ? (
           <AdvisorsTab toast={toast} />
         ) : tab === "kursy" ? (
-          <CoursesTab toast={toast} />
+          <CoursesTab toast={toast} onUnseenChange={onUnseenChange} />
         ) : (
           <AccessTab currentEmail={user.email} toast={toast} />
         )}

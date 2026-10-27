@@ -159,6 +159,7 @@ export async function updateCourse(c: Course): Promise<void> {
 
 export async function removeCourse(id: string): Promise<void> {
   const DB = await db();
+  await DB.prepare("DELETE FROM course_views WHERE course_id = ?").bind(id).run();
   await DB.prepare("DELETE FROM course_bookings WHERE course_id = ?").bind(id).run();
   await DB.prepare("DELETE FROM courses WHERE id = ?").bind(id).run();
 }
@@ -251,4 +252,40 @@ export async function removeBooking(id: string): Promise<CourseBooking | null> {
   const DB = await db();
   const row = await DB.prepare("DELETE FROM course_bookings WHERE id = ? RETURNING *").bind(id).first<Row>();
   return row ? rowToBooking(row) : null;
+}
+
+// ----- "New since last look" (admin panel) -----
+
+/**
+ * Per course, how many bookings came in after this admin last opened the
+ * course's bookings. A course they've never opened counts all of its bookings.
+ */
+export async function adminUnseenBookingCounts(adminEmail: string): Promise<Record<string, number>> {
+  const DB = await db();
+  const { results } = await DB.prepare(
+    `SELECT b.course_id, COUNT(*) AS n
+       FROM course_bookings b
+       LEFT JOIN course_views v ON v.course_id = b.course_id AND v.admin_email = ?
+      WHERE v.seen_at IS NULL OR b.created_at > v.seen_at
+      GROUP BY b.course_id`,
+  ).bind(adminEmail.toLowerCase()).all<{ course_id: string; n: number }>();
+  return Object.fromEntries((results ?? []).map((r) => [r.course_id, Number(r.n)]));
+}
+
+/**
+ * Records that this admin is looking at the course's bookings now. Returns
+ * when they last looked before (null if never), so the panel can still mark
+ * which bookings were new to them this time.
+ */
+export async function markCourseSeen(adminEmail: string, courseId: string): Promise<string | null> {
+  const DB = await db();
+  const email = adminEmail.toLowerCase();
+  const [previous] = await DB.batch<{ seen_at: string }>([
+    DB.prepare("SELECT seen_at FROM course_views WHERE admin_email = ? AND course_id = ?").bind(email, courseId),
+    DB.prepare(
+      `INSERT INTO course_views (admin_email, course_id, seen_at) VALUES (?, ?, datetime('now'))
+       ON CONFLICT (admin_email, course_id) DO UPDATE SET seen_at = excluded.seen_at`,
+    ).bind(email, courseId),
+  ]);
+  return previous.results?.[0]?.seen_at ?? null;
 }
