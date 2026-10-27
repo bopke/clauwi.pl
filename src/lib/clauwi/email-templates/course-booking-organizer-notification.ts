@@ -10,7 +10,7 @@
 //
 // Edit the strings below; the frame comes from layout.ts.
 
-import { EMAIL_STYLES as S, detailsBox, type EmailContent } from "./layout";
+import { EMAIL_STYLES as S, detailsBox, escapeHtml, escapeMultiline, type EmailContent } from "./layout";
 
 export function courseBookingOrganizerEmail(params: {
   courseName: string;
@@ -34,11 +34,11 @@ export function courseBookingOrganizerEmail(params: {
 ${detailsBox([
   { label: "Termin", value: startDateTime },
   { label: "Miejsce", value: location },
-  { label: "Uczestnik", value: customerName },
-  { label: "E-mail", value: `<a href="mailto:${customerEmail}" style="${S.link}">${customerEmail}</a>` },
-  ...(customerPhone ? [{ label: "Telefon", value: customerPhone }] : []),
+  { label: "Uczestnik", value: escapeHtml(customerName) },
+  { label: "E-mail", value: `<a href="mailto:${escapeHtml(customerEmail)}" style="${S.link}">${escapeHtml(customerEmail)}</a>` },
+  ...(customerPhone ? [{ label: "Telefon", value: escapeHtml(customerPhone) }] : []),
   { label: "Liczba osób", value: String(seats) },
-  ...(message ? [{ label: "Wiadomość", value: message }] : []),
+  ...(message ? [{ label: "Wiadomość", value: escapeMultiline(message) }] : []),
 ])}
 <p style="${S.small}">Zgłoszenie czeka w panelu, w zakładce „Kursy” → „Zgłoszenia”. Tam można potwierdzić udział albo anulować zgłoszenie — i przy okazji powiadomić o tym uczestnika.</p>`,
   };

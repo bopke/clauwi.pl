@@ -8,7 +8,7 @@
 //
 // Edit the strings below; the frame comes from layout.ts.
 
-import { EMAIL_STYLES as S, detailsBox, type EmailContent } from "./layout";
+import { EMAIL_STYLES as S, detailsBox, escapeHtml, type EmailContent } from "./layout";
 
 type StatusEmailParams = {
   customerName: string;
@@ -25,7 +25,7 @@ export function courseBookingConfirmedEmail(params: StatusEmailParams): EmailCon
     preheader: `Twój udział jest potwierdzony. Termin: ${dateTime}.`,
     heading: "Udział potwierdzony",
     body: `
-<p style="${S.p}">Dzień dobry <strong>${customerName}</strong>,</p>
+<p style="${S.p}">Dzień dobry <strong>${escapeHtml(customerName)}</strong>,</p>
 <p style="${S.p}">Potwierdzamy Twój udział w szkoleniu <strong>${courseName}</strong>.</p>
 ${detailsBox([
   { label: "Termin", value: dateTime },
@@ -43,7 +43,7 @@ export function courseBookingCancelledEmail(params: StatusEmailParams): EmailCon
     preheader: "Twoje zgłoszenie zostało anulowane.",
     heading: "Zgłoszenie anulowane",
     body: `
-<p style="${S.p}">Dzień dobry <strong>${customerName}</strong>,</p>
+<p style="${S.p}">Dzień dobry <strong>${escapeHtml(customerName)}</strong>,</p>
 <p style="${S.p}">Informujemy, że Twoje zgłoszenie na szkolenie <strong>${courseName}</strong> zostało anulowane.</p>
 ${detailsBox([
   { label: "Termin", value: dateTime },

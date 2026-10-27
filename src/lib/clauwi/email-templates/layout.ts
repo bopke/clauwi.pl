@@ -227,10 +227,20 @@ function toPlainText(content: EmailContent): string {
   ].join("\n");
 }
 
-function escapeHtml(s: string): string {
+/**
+ * Anything a visitor typed (names, e-mails, messages) must go through this
+ * before it's put into a template's HTML — otherwise a booking "name" could
+ * carry links or images into an e-mail sent from our address.
+ */
+export function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/** escapeHtml, keeping the visitor's line breaks. */
+export function escapeMultiline(s: string): string {
+  return escapeHtml(s).replace(/\r?\n/g, "<br>");
 }

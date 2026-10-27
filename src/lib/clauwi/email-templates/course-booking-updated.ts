@@ -6,7 +6,7 @@
 //
 // Edit the strings below; the frame comes from layout.ts.
 
-import { EMAIL_STYLES as S, detailsBox, type EmailContent } from "./layout";
+import { EMAIL_STYLES as S, detailsBox, escapeHtml, type EmailContent } from "./layout";
 
 export type BookingChange = { label: string; from: string; to: string };
 
@@ -24,7 +24,7 @@ export function courseBookingUpdatedEmail(params: {
 <ul style="margin: 0 0 16px; padding-left: 20px;">
 ${changes
   .map(
-    (c) => `  <li style="${S.p} margin-bottom: 6px;"><strong>${c.label}:</strong> <span style="color: #a09892; text-decoration: line-through;">${c.from || "—"}</span> &rarr; ${c.to || "—"}</li>`,
+    (c) => `  <li style="${S.p} margin-bottom: 6px;"><strong>${c.label}:</strong> <span style="color: #a09892; text-decoration: line-through;">${escapeHtml(c.from) || "—"}</span> &rarr; ${escapeHtml(c.to) || "—"}</li>`,
   )
   .join("\n")}
 </ul>`
@@ -35,7 +35,7 @@ ${changes
     preheader: "Twoje zgłoszenie zostało zaktualizowane.",
     heading: "Zmiana w zgłoszeniu",
     body: `
-<p style="${S.p}">Dzień dobry <strong>${customerName}</strong>,</p>
+<p style="${S.p}">Dzień dobry <strong>${escapeHtml(customerName)}</strong>,</p>
 <p style="${S.p}">Twoje zgłoszenie na szkolenie <strong>${courseName}</strong> zostało zaktualizowane.</p>
 ${changeList}
 ${detailsBox([

@@ -4,7 +4,7 @@
 //
 // Edit the strings below; the frame comes from layout.ts.
 
-import { EMAIL_STYLES as S, detailsBox, type EmailContent } from "./layout";
+import { EMAIL_STYLES as S, detailsBox, escapeHtml, escapeMultiline, type EmailContent } from "./layout";
 
 export function contactFormEmail(params: {
   name: string;
@@ -18,19 +18,10 @@ export function contactFormEmail(params: {
     heading: "Wiadomość z formularza",
     body: `
 ${detailsBox([
-  { label: "Od", value: name },
-  { label: "E-mail", value: `<a href="mailto:${email}" style="${S.link}">${email}</a>` },
+  { label: "Od", value: escapeHtml(name) },
+  { label: "E-mail", value: `<a href="mailto:${escapeHtml(email)}" style="${S.link}">${escapeHtml(email)}</a>` },
 ])}
-<p style="${S.p}">${escapeAndBreak(message)}</p>
+<p style="${S.p}">${escapeMultiline(message)}</p>
 <p style="${S.small}">Odpowiedź na tę wiadomość trafi bezpośrednio do nadawcy.</p>`,
   };
-}
-
-/** Visitor-supplied text goes into HTML — escape it, then keep the line breaks. */
-function escapeAndBreak(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\r?\n/g, "<br>");
 }

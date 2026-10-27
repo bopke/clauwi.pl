@@ -8,7 +8,7 @@
 // Sending is not automatic — the panel asks when deleting.
 // Edit the strings below; the frame comes from layout.ts.
 
-import { EMAIL_STYLES as S, detailsBox, type EmailContent } from "./layout";
+import { EMAIL_STYLES as S, detailsBox, escapeHtml, type EmailContent } from "./layout";
 
 export function courseBookingRemovedEmail(params: {
   customerName: string;
@@ -22,7 +22,7 @@ export function courseBookingRemovedEmail(params: {
     preheader: "Twoje zgłoszenie zostało usunięte z listy uczestników.",
     heading: "Zgłoszenie usunięte",
     body: `
-<p style="${S.p}">Dzień dobry <strong>${customerName}</strong>,</p>
+<p style="${S.p}">Dzień dobry <strong>${escapeHtml(customerName)}</strong>,</p>
 <p style="${S.p}">Informujemy, że Twoje zgłoszenie na szkolenie <strong>${courseName}</strong> zostało usunięte z listy uczestników.</p>
 ${detailsBox([
   { label: "Termin", value: dateTime },
