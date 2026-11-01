@@ -5,6 +5,8 @@
 // runtime Worker variable would never reach them. `npm run deploy:prod`
 // builds without it, so production renders nothing here.
 
+import { NewsletterStylePicker } from "./newsletter-style-picker";
+
 const BAR_HEIGHT = 28;
 
 export function StagingBanner() {
@@ -14,10 +16,12 @@ export function StagingBanner() {
     <>
       <div
         role="status"
-        className="fixed inset-x-0 top-0 z-[100001] flex items-center justify-center bg-orange-500 px-4 text-center text-xs font-semibold uppercase tracking-wide text-white shadow"
+        className="fixed inset-x-0 top-0 z-[100001] flex items-center justify-center gap-4 bg-orange-500 px-4 text-center text-xs font-semibold uppercase tracking-wide text-white shadow"
         style={{ height: BAR_HEIGHT }}
       >
-        Środowisko testowe (staging) — to nie jest strona produkcyjna
+        <span className="max-[639px]:hidden">Środowisko testowe (staging) — to nie jest strona produkcyjna</span>
+        <span className="min-[640px]:hidden">Staging</span>
+        <NewsletterStylePicker />
       </div>
       {/* Pushes the page down so the bar doesn't cover the header. */}
       <div aria-hidden style={{ height: BAR_HEIGHT, flexShrink: 0 }} />
