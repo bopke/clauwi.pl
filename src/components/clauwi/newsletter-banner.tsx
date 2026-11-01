@@ -2,6 +2,7 @@
 
 import { useCallback, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { subscribeNewsletterAction } from "@/lib/clauwi/newsletter-actions";
 
 const DISMISSED_KEY = "clauwi-newsletter-dismissed";
@@ -45,6 +46,8 @@ export function NewsletterBanner() {
   // Server render and hydration treat it as dismissed, so visitors who closed
   // it never see it flash in; the real value is read on the client.
   const dismissed = useSyncExternalStore(subscribe, wasDismissed, () => true);
+  // Not on the newsletter's own pages (unsubscribing) — it would be absurd there.
+  const onNewsletterPage = usePathname().startsWith("/newsletter/");
   const [engaged, setEngaged] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
@@ -60,7 +63,7 @@ export function NewsletterBanner() {
     return () => ro.disconnect();
   }, []);
 
-  if ((dismissed && !done) || gone) return null;
+  if ((dismissed && !done) || gone || onNewsletterPage) return null;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
