@@ -77,6 +77,12 @@ export type RenderOptions = {
   baseUrl?: string;
   /** Overrides just the logo (the preview script points it at a local file). */
   logoUrl?: string;
+  /**
+   * Newsletter mailings only: the recipient's unsubscribe page, linked from
+   * the footer (required for marketing e-mail). Transactional e-mails leave
+   * it out.
+   */
+  unsubscribeUrl?: string;
 };
 
 /** Paragraph, list and link styles the templates can reuse verbatim. */
@@ -169,7 +175,11 @@ export function renderEmail(content: EmailContent, opts: RenderOptions = {}): Re
                 <a href="mailto:${CONTACT.email}" style="color: ${THEME.muted};">${CONTACT.email}</a> &nbsp;·&nbsp;
                 <a href="${CONTACT.phoneHref}" style="color: ${THEME.muted};">${CONTACT.phone}</a><br>
                 <a href="${baseUrl}" style="color: ${THEME.brand};">clauwi.pl</a>
-              </p>
+              </p>${opts.unsubscribeUrl ? `
+              <p style="margin: 16px 0 0; font-family: ${THEME.body}; font-size: 12px; line-height: 1.6; color: ${THEME.muted}; text-align: center;">
+                Otrzymujesz tę wiadomość, bo Twój adres jest zapisany na informacje o kursach i ofertach ${escapeHtml(SITE.name)}.<br>
+                <a href="${escapeHtml(opts.unsubscribeUrl)}" style="color: ${THEME.muted};">Wypisz się z newslettera</a>
+              </p>` : ""}
             </td>
           </tr>
 
@@ -181,7 +191,7 @@ export function renderEmail(content: EmailContent, opts: RenderOptions = {}): Re
 </body>
 </html>`;
 
-  return { subject: content.subject, html, text: toPlainText(content) };
+  return { subject: content.subject, html, text: toPlainText(content, opts.unsubscribeUrl) };
 }
 
 /**
@@ -189,7 +199,7 @@ export function renderEmail(content: EmailContent, opts: RenderOptions = {}): Re
  * apart. Sending text/plain alongside the HTML keeps spam filters happy and
  * covers clients with images and HTML turned off.
  */
-function toPlainText(content: EmailContent): string {
+function toPlainText(content: EmailContent, unsubscribeUrl?: string): string {
   const body = content.body
     .replace(/<br\s*\/?>/gi, "\n")
     // Details boxes are two-column tables — render them as "Label: value".
@@ -224,6 +234,7 @@ function toPlainText(content: EmailContent): string {
     `${SITE.name} — ${SITE.tagline}`,
     `${CONTACT.email} · ${CONTACT.phone}`,
     SITE.url,
+    ...(unsubscribeUrl ? ["", `Wypisz się z newslettera: ${unsubscribeUrl}`] : []),
   ].join("\n");
 }
 

@@ -11,7 +11,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { NewsletterFilters, NewsletterRecipient } from "@/lib/clauwi/newsletter";
-import { buildNewsletterEmail, PLACEHOLDERS, unknownPlaceholders, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
+import { buildNewsletterEmail, PLACEHOLDERS, unknownPlaceholders, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
 import { getNewsletterRecipientAction } from "@/app/admin/actions";
 import "./admin.css";
 
@@ -160,7 +160,8 @@ function Composer() {
   const total = preview?.total ?? 0;
   const recipient = preview?.recipient ?? (preview && total === 0 ? SAMPLE : null);
   const email = useMemo(
-    () => (recipient ? buildNewsletterEmail(draft, recipient, window.location.origin) : null),
+    // The real link gets each recipient's own token at send time.
+    () => (recipient ? buildNewsletterEmail(draft, recipient, { baseUrl: window.location.origin, unsubscribeUrl: unsubscribeUrl(window.location.origin, "podglad") }) : null),
     [draft, recipient],
   );
   const unknown = useMemo(() => unknownPlaceholders(`${draft.subject} ${draft.heading} ${draft.body}`), [draft]);

@@ -139,11 +139,20 @@ function bodyToHtml(text: string, r: NewsletterRecipient): string {
   return markdown.parse(fillTemplate(text.replace(/\r\n/g, "\n"), r, escapeMarkdown), { async: false });
 }
 
-/** The finished e-mail for one recipient. */
-export function buildNewsletterEmail(draft: NewsletterDraft, r: NewsletterRecipient, baseUrl?: string): RenderedEmail {
+/** The recipient's unsubscribe page (see migrations/0016). */
+export function unsubscribeUrl(baseUrl: string, token: string): string {
+  return `${baseUrl.replace(/\/$/, "")}/newsletter/wypisz/${token}`;
+}
+
+/** The finished e-mail for one recipient, footer unsubscribe link included. */
+export function buildNewsletterEmail(
+  draft: NewsletterDraft,
+  r: NewsletterRecipient,
+  opts: { baseUrl: string; unsubscribeUrl: string },
+): RenderedEmail {
   const subject = fillTemplate(draft.subject, r);
   return renderEmail(
     { subject, preheader: subject, heading: fillTemplate(draft.heading, r), body: bodyToHtml(draft.body, r) },
-    { baseUrl },
+    opts,
   );
 }
