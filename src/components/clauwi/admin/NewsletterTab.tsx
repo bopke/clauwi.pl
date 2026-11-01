@@ -4,10 +4,14 @@
 // from the newsletter card on the site and course bookings with the marketing
 // checkbox ticked — filterable by where they came from. Deleting an address
 // takes it off the list everywhere (see adminRemoveFromNewsletter).
+//
+// Filtering and paging happen on the server, a page at a time — the list will
+// also hold an imported archive, far too long to load whole.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { NewsletterEntry } from "@/lib/clauwi/newsletter";
-import { getNewsletterAction, removeFromNewsletterAction } from "@/app/admin/actions";
+import { useEffect, useMemo, useState } from "react";
+import { NEWSLETTER_PAGE_SIZE, type NewsletterCourse, type NewsletterPage, type NewsletterQuery } from "@/lib/clauwi/newsletter";
+import { getNewsletterAction, getNewsletterCoursesAction, removeFromNewsletterAction } from "@/app/admin/actions";
+import { CoursePickerModal } from "./CoursePickerModal";
 
 const coll = new Intl.Collator("pl");
 
@@ -30,6 +34,12 @@ function Confirm({ title, text, confirmLabel, onConfirm, onClose }: { title: str
   );
 }
 
+/** Polish plural: 1 adres, 2–4 adresy, 5+ adresów (12–14 → many). */
+function plural(n: number, one: string, few: string, many: string): string {
+  const d = n % 10, dd = n % 100;
+  return n === 1 ? one : d >= 2 && d <= 4 && (dd < 12 || dd > 14) ? few : many;
+}
+
 /** "2026-11-01 14:05:00" (UTC, as SQLite stores it) → local date and time. */
 function formatUtc(sql: string): string {
   const d = new Date(sql.replace(" ", "T") + (sql.endsWith("Z") ? "" : "Z"));
@@ -43,21 +53,48 @@ function formatCourseDate(sql: string): string {
 }
 
 export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
-  const [entries, setEntries] = useState<NewsletterEntry[]>([]);
+  const [data, setData] = useState<NewsletterPage | null>(null);
+  const [courses, setCourses] = useState<NewsletterCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [q, setQ] = useState("");
-  const [source, setSource] = useState<"" | "widget" | "course">("");
+  // The search box as sent to the server — lags typing by a moment.
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [source, setSource] = useState<NewsletterQuery["source"]>("");
   const [courseType, setCourseType] = useState("");
-  const [courseId, setCourseId] = useState("");
+  const [courseIds, setCourseIds] = useState<string[]>([]);
+  const [picking, setPicking] = useState(false);
+  const [page, setPage] = useState(1);
+  // Bumped to refetch the current page (after a deletion).
+  const [reload, setReload] = useState(0);
   const [delTarget, setDelTarget] = useState<string | null>(null);
 
-  const load = useCallback(
-    () => getNewsletterAction().then((list) => { setEntries(list); setFailed(false); }, () => setFailed(true)).finally(() => setLoading(false)),
-    [],
-  );
+  useEffect(() => {
+    if (q === debouncedQ) return;
+    const t = setTimeout(() => { setDebouncedQ(q); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [q, debouncedQ]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    getNewsletterCoursesAction().then(setCourses, () => {});
+  }, [reload]);
+
+  useEffect(() => {
+    let stale = false;
+    getNewsletterAction({ page, q: debouncedQ, source, courseType, courseIds })
+      .then(
+        (res) => {
+          if (stale) return;
+          // Deleting the last entry of the last page leaves it empty — step back.
+          if (res.entries.length === 0 && page > 1) setPage(Math.max(1, Math.ceil(res.total / NEWSLETTER_PAGE_SIZE)));
+          setData(res);
+          setFailed(false);
+        },
+        () => { if (!stale) setFailed(true); },
+      )
+      .finally(() => { if (!stale) setLoading(false); });
+    return () => { stale = true; };
+  }, [page, debouncedQ, source, courseType, courseIds, reload]);
 
   async function doDelete() {
     if (!delTarget) return;
@@ -68,35 +105,23 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
       toast("Nie udało się usunąć adresu.");
     } finally {
       setDelTarget(null);
-      await load();
+      setReload((n) => n + 1);
     }
   }
 
-  const types = useMemo(
-    () => [...new Set(entries.flatMap((e) => (e.courseType ? [e.courseType] : [])))].sort(coll.compare),
-    [entries],
-  );
-  // Courses offered in the course filter — narrowed by the chosen type.
-  const courses = useMemo(() => {
-    const byId = new Map<string, NewsletterEntry>();
-    for (const e of entries) {
-      if (e.source === "course" && e.courseId && (!courseType || e.courseType === courseType)) byId.set(e.courseId, e);
-    }
-    return [...byId.values()].sort((a, b) => (b.courseStartsAt ?? "").localeCompare(a.courseStartsAt ?? ""));
-  }, [entries, courseType]);
+  const types = useMemo(() => [...new Set(courses.map((c) => c.type).filter(Boolean))].sort(coll.compare), [courses]);
+  // The picker offers only courses of the type chosen in the toolbar, if any.
+  const pickerCourses = useMemo(() => courses.filter((c) => !courseType || c.type === courseType), [courses, courseType]);
+  const courseLabel =
+    courseIds.length === 0 ? "Wszystkie kursy"
+    : courseIds.length === 1 ? (courses.find((c) => c.id === courseIds[0])?.name ?? "1 kurs")
+    : `${courseIds.length} ${plural(courseIds.length, "kurs", "kursy", "kursów")}`;
 
-  const view = useMemo(() => {
-    const qq = q.trim().toLowerCase();
-    return entries.filter((e) => {
-      if (source && e.source !== source) return false;
-      if (courseType && e.courseType !== courseType) return false;
-      if (courseId && e.courseId !== courseId) return false;
-      if (qq && !e.email.toLowerCase().includes(qq) && !(e.name ?? "").toLowerCase().includes(qq)) return false;
-      return true;
-    });
-  }, [entries, q, source, courseType, courseId]);
-
-  const uniqueEmails = useMemo(() => new Set(view.map((e) => e.email.toLowerCase())).size, [view]);
+  const entries = data?.entries ?? [];
+  const total = data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / NEWSLETTER_PAGE_SIZE));
+  const from = total === 0 ? 0 : (page - 1) * NEWSLETTER_PAGE_SIZE + 1;
+  const to = Math.min(page * NEWSLETTER_PAGE_SIZE, total);
 
   return (
     <div>
@@ -111,7 +136,8 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
           onChange={(e) => {
             const v = e.target.value as typeof source;
             setSource(v);
-            if (v === "widget") { setCourseType(""); setCourseId(""); }
+            if (v === "widget") { setCourseType(""); setCourseIds([]); }
+            setPage(1);
           }}
         >
           <option value="">Wszystkie źródła</option>
@@ -124,32 +150,25 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
           disabled={source === "widget"}
           onChange={(e) => {
             setCourseType(e.target.value);
-            setCourseId("");
+            setCourseIds([]);
             if (e.target.value) setSource("course");
+            setPage(1);
           }}
         >
           <option value="">Wszystkie rodzaje kursów</option>
           {types.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
-        <select
-          className="adm-select"
-          value={courseId}
-          disabled={source === "widget"}
-          onChange={(e) => {
-            setCourseId(e.target.value);
-            if (e.target.value) setSource("course");
-          }}
-        >
-          <option value="">Wszystkie kursy</option>
-          {courses.map((c) => (
-            <option key={c.courseId} value={c.courseId}>
-              {c.courseName} ({formatCourseDate(c.courseStartsAt ?? "")})
-            </option>
-          ))}
-        </select>
+        <span className={"adm-pickbtn" + (courseIds.length ? " is-on" : "")}>
+          <button type="button" className="adm-select" disabled={source === "widget"} onClick={() => setPicking(true)} title="Wybierz kursy">
+            {courseLabel}
+          </button>
+          {courseIds.length > 0 && (
+            <button type="button" className="adm-pickbtn__clear" aria-label="Wyczyść wybór kursów" onClick={() => { setCourseIds([]); setPage(1); }}>×</button>
+          )}
+        </span>
         <span className="adm-count">
-          {view.length} z {entries.length}
-          {uniqueEmails !== view.length && ` · ${uniqueEmails} unikalnych adresów`}
+          {total} {plural(total, "wpis", "wpisy", "wpisów")}
+          {data && data.uniqueEmails !== total && ` · ${data.uniqueEmails} ${plural(data.uniqueEmails, "unikalny adres", "unikalne adresy", "unikalnych adresów")}`}
         </span>
       </div>
 
@@ -159,7 +178,7 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
             <tr><th>E-mail</th><th>Źródło</th><th>Data zgody</th><th className="adm-th-act">Akcje</th></tr>
           </thead>
           <tbody>
-            {view.map((e) => (
+            {entries.map((e) => (
               <tr key={`${e.source}-${e.courseId ?? ""}-${e.email}-${e.createdAt}`}>
                 <td className="adm-td-name">
                   {e.email}
@@ -186,7 +205,7 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
                 </td>
               </tr>
             ))}
-            {view.length === 0 && (
+            {entries.length === 0 && (
               <tr>
                 <td colSpan={4} className="adm-empty">
                   {loading ? "Wczytywanie…" : failed ? "Nie udało się wczytać listy." : "Brak zapisów dla podanych kryteriów."}
@@ -197,22 +216,55 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
         </table>
       </div>
 
-      {delTarget && (() => {
-        const n = entries.filter((e) => e.email.toLowerCase() === delTarget.toLowerCase()).length;
-        return (
-          <Confirm
-            title="Usunąć z listy?"
-            text={
-              "Adres „" + delTarget + "” zniknie z listy newslettera" +
-              (n > 1 ? ` — razem ze wszystkimi ${n} wpisami tego adresu` : "") +
-              ". Zgłoszenia na kursy zostają, wycofana zostaje tylko zgoda na oferty. Tej operacji nie można cofnąć."
-            }
-            confirmLabel="Usuń"
-            onConfirm={doDelete}
-            onClose={() => setDelTarget(null)}
-          />
-        );
-      })()}
+      {pages > 1 && (
+        <nav className="adm-pager" aria-label="Strony">
+          <button className="adm-btn adm-btn--ghost" disabled={page <= 1} onClick={() => setPage(1)} aria-label="Pierwsza strona">«</button>
+          <button className="adm-btn adm-btn--ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>‹ Poprzednia</button>
+          <span className="adm-pager__info">
+            {from}–{to} z {total} · strona
+            <input
+              key={page}
+              type="number"
+              min={1}
+              max={pages}
+              defaultValue={page}
+              aria-label="Numer strony"
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                const n = Math.min(pages, Math.max(1, Number(e.currentTarget.value) | 0));
+                setPage(n);
+              }}
+            />
+            z {pages}
+          </span>
+          <button className="adm-btn adm-btn--ghost" disabled={page >= pages} onClick={() => setPage(page + 1)}>Następna ›</button>
+          <button className="adm-btn adm-btn--ghost" disabled={page >= pages} onClick={() => setPage(pages)} aria-label="Ostatnia strona">»</button>
+        </nav>
+      )}
+
+      {picking && (
+        <CoursePickerModal
+          courses={pickerCourses}
+          selected={courseIds}
+          onClose={() => setPicking(false)}
+          onApply={(ids) => {
+            setCourseIds(ids);
+            if (ids.length) setSource("course");
+            setPage(1);
+            setPicking(false);
+          }}
+        />
+      )}
+
+      {delTarget && (
+        <Confirm
+          title="Usunąć z listy?"
+          text={"Adres „" + delTarget + "” zniknie z listy newslettera, razem ze wszystkimi swoimi wpisami. Zgłoszenia na kursy zostają, wycofana zostaje tylko zgoda na oferty. Tej operacji nie można cofnąć."}
+          confirmLabel="Usuń"
+          onConfirm={doDelete}
+          onClose={() => setDelTarget(null)}
+        />
+      )}
     </div>
   );
 }
