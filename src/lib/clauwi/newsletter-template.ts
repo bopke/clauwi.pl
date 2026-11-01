@@ -1,5 +1,6 @@
-// Templating for newsletter mailings (shared by the composer's live preview
-// and, later, the sending).
+// Templating for messages written in the admin panel — newsletter mailings
+// and messages to a course's participants. Shared by the composer's live
+// preview and the sending, so what's previewed is what goes out.
 //
 // A message is Markdown with placeholders: {{imie}}, {{kurs.miejsce}}…
 // Each can carry a fallback for recipients who lack that detail (newsletter
@@ -45,6 +46,7 @@ export const PLACEHOLDERS: Placeholder[] = [
   { key: "kurs.miejsce", label: "Pełny adres kursu", group: "Kurs", value: (r) => r.course?.location ?? "" },
   { key: "kurs.data", label: "Data rozpoczęcia", group: "Kurs", value: (r) => (r.course ? longDate(r.course.startsAt) : "") },
   { key: "kurs.data_koniec", label: "Data zakończenia", group: "Kurs", value: (r) => (r.course ? longDate(r.course.endsAt || r.course.startsAt) : "") },
+  { key: "kurs.godzina", label: "Godzina rozpoczęcia", group: "Kurs", value: (r) => r.course?.startsAt.slice(11, 16) ?? "" },
   { key: "kurs.rok", label: "Rok kursu", group: "Kurs", value: (r) => r.course?.startsAt.slice(0, 4) ?? "" },
 ];
 
@@ -144,15 +146,18 @@ export function unsubscribeUrl(baseUrl: string, token: string): string {
   return `${baseUrl.replace(/\/$/, "")}/newsletter/wypisz/${token}`;
 }
 
-/** The finished e-mail for one recipient, footer unsubscribe link included. */
-export function buildNewsletterEmail(
+/**
+ * The finished e-mail for one recipient. Newsletter mailings pass the
+ * recipient's unsubscribe link (footer line); messages to course participants
+ * are about their booking and go without.
+ */
+export function buildMessageEmail(
   draft: NewsletterDraft,
   r: NewsletterRecipient,
-  opts: { baseUrl: string; unsubscribeUrl: string },
+  opts: { baseUrl: string; unsubscribeUrl?: string },
 ): RenderedEmail {
   const subject = fillTemplate(draft.subject, r);
-  return renderEmail(
-    { subject, preheader: subject, heading: fillTemplate(draft.heading, r), body: bodyToHtml(draft.body, r) },
-    opts,
-  );
+  // No heading of its own → repeat the subject, the layout needs one.
+  const heading = fillTemplate(draft.heading, r).trim() || subject;
+  return renderEmail({ subject, preheader: subject, heading, body: bodyToHtml(draft.body, r) }, opts);
 }

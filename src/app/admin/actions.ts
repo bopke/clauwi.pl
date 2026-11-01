@@ -14,6 +14,8 @@ import { BOOKING_FIELD_LABELS } from "@/lib/clauwi/courses";
 import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus } from "@/lib/clauwi/courses";
 import type { BookingChange } from "@/lib/clauwi/email-templates/course-booking-updated";
 import { adminListNewsletter, adminListNewsletterCourses, adminNewsletterRecipient, adminRemoveFromNewsletter } from "@/lib/clauwi/newsletter-repo";
+import { courseMessageRecipients, sendCourseMessage } from "@/lib/clauwi/course-messages";
+import type { NewsletterDraft } from "@/lib/clauwi/newsletter-template";
 import type { NewsletterCourse, NewsletterFilters, NewsletterPage, NewsletterQuery, NewsletterRecipient } from "@/lib/clauwi/newsletter";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -236,4 +238,24 @@ export async function getNewsletterCoursesAction(): Promise<NewsletterCourse[]> 
 export async function removeFromNewsletterAction(email: string): Promise<void> {
   await requireAdmin();
   await adminRemoveFromNewsletter(email);
+}
+
+// ----- Messages to course participants -----
+
+export async function getCourseMessageAction(
+  courseId: string,
+  bookingIds: string[],
+): Promise<{ course: Course; recipients: NewsletterRecipient[]; bookingIds: string[] } | null> {
+  await requireAdmin();
+  return courseMessageRecipients(courseId, bookingIds);
+}
+
+/** Sends one chunk (see COURSE_MESSAGE_CHUNK); the composer loops over the selection. */
+export async function sendCourseMessageAction(
+  courseId: string,
+  bookingIds: string[],
+  draft: NewsletterDraft,
+): Promise<{ sent: number; failed: string[] }> {
+  await requireAdmin();
+  return sendCourseMessage(courseId, bookingIds, draft);
 }

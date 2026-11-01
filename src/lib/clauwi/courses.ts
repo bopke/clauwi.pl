@@ -65,3 +65,10 @@ export const CourseUtil = {
     return Math.max(0, course.capacity - booked);
   },
 };
+
+/**
+ * Messages to course participants are sent at most this many per request
+ * (the composer loops over a selection) — keeps each request well inside the
+ * Workers limit on outgoing calls, and lets the composer show progress.
+ */
+export const COURSE_MESSAGE_CHUNK = 20;

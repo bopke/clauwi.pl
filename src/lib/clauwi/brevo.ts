@@ -14,7 +14,7 @@ import type { Course, CourseBooking } from "./courses";
 
 type Attachment = { name: string; content: string };
 
-type SendArgs = {
+export type SendArgs = {
   to: string;
   toName?: string;
   subject: string;
@@ -71,6 +71,34 @@ async function sendViaBrevo(args: SendArgs): Promise<void> {
 }
 
 /**
+ * Sends an already rendered e-mail — for callers that build their own
+ * (course messages, newsletter mailings), so they never deal with Brevo.
+ */
+export async function sendEmail(args: SendArgs): Promise<void> {
+  await sendViaBrevo(args);
+}
+
+/**
+ * Base URL for an e-mail's logo and links. Until the domain cutover the logo
+ * has to be fetched from wherever this build is actually deployed —
+ * clauwi.pl is still the old WordPress site — so fall back to the request's
+ * own host rather than the future domain.
+ */
+export async function emailBaseUrl(): Promise<string> {
+  const { env } = await getCloudflareContext({ async: true });
+  let host: string | null = null;
+  let protocol: string | null = null;
+  try {
+    const h = await headers();
+    host = h.get("host");
+    protocol = h.get("x-forwarded-proto");
+  } catch {
+    // Not in a request scope (e.g. a script) — the defaults below cover it.
+  }
+  return resolveEmailBaseUrl({ configured: env.EMAIL_BASE_URL, host, protocol });
+}
+
+/**
  * Sends one of the templates from ./email-templates. The template supplies the
  * subject and its own content; layout.ts wraps it in the site's look and
  * derives the plain-text alternative, so every e-mail we send goes out as both
@@ -83,21 +111,7 @@ async function sendTemplate(args: {
   replyTo?: { email: string; name?: string };
   attachments?: Attachment[];
 }): Promise<void> {
-  // Until the domain cutover the logo has to be fetched from wherever this
-  // build is actually deployed — clauwi.pl is still the old WordPress site —
-  // so fall back to the request's own host rather than the future domain.
-  const { env } = await getCloudflareContext({ async: true });
-  let host: string | null = null;
-  let protocol: string | null = null;
-  try {
-    const h = await headers();
-    host = h.get("host");
-    protocol = h.get("x-forwarded-proto");
-  } catch {
-    // Not in a request scope (e.g. a script) — the defaults below cover it.
-  }
-  const baseUrl = resolveEmailBaseUrl({ configured: env.EMAIL_BASE_URL, host, protocol });
-  const { subject, html, text } = renderEmail(args.content, { baseUrl });
+  const { subject, html, text } = renderEmail(args.content, { baseUrl: await emailBaseUrl() });
   await sendViaBrevo({
     to: args.to,
     toName: args.toName,
