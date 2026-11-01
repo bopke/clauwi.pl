@@ -13,7 +13,7 @@ import { sendBookingStatusEmail, sendBookingUpdatedEmail, sendBookingRemovedEmai
 import { BOOKING_FIELD_LABELS } from "@/lib/clauwi/courses";
 import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus } from "@/lib/clauwi/courses";
 import type { BookingChange } from "@/lib/clauwi/email-templates/course-booking-updated";
-import { adminListNewsletter } from "@/lib/clauwi/newsletter-repo";
+import { adminListNewsletter, adminRemoveFromNewsletter } from "@/lib/clauwi/newsletter-repo";
 import type { NewsletterEntry } from "@/lib/clauwi/newsletter";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -218,4 +218,9 @@ export async function deleteBookingAction(id: string, notify = false): Promise<{
 export async function getNewsletterAction(): Promise<NewsletterEntry[]> {
   await requireAdmin();
   return adminListNewsletter();
+}
+
+export async function removeFromNewsletterAction(email: string): Promise<void> {
+  await requireAdmin();
+  await adminRemoveFromNewsletter(email);
 }

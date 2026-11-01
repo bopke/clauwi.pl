@@ -2,13 +2,33 @@
 
 // Admin "Newsletter" tab: everyone who agreed to marketing e-mails — sign-ups
 // from the newsletter card on the site and course bookings with the marketing
-// checkbox ticked — filterable by where they came from.
+// checkbox ticked — filterable by where they came from. Deleting an address
+// takes it off the list everywhere (see adminRemoveFromNewsletter).
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { NewsletterEntry } from "@/lib/clauwi/newsletter";
-import { getNewsletterAction } from "@/app/admin/actions";
+import { getNewsletterAction, removeFromNewsletterAction } from "@/app/admin/actions";
 
 const coll = new Intl.Collator("pl");
+
+const TrashIcon = () => (
+  <svg viewBox="0 0 24 24" width="17" height="17"><path d="M5 7h14M10 7V5h4v2M6 7l1 13h10l1-13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+);
+
+function Confirm({ title, text, confirmLabel, onConfirm, onClose }: { title: string; text: string; confirmLabel: string; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <div className="adm-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="adm-confirm">
+        <h2>{title}</h2>
+        <p>{text}</p>
+        <div className="adm-confirm__foot">
+          <button className="adm-btn adm-btn--ghost" onClick={onClose}>Anuluj</button>
+          <button className="adm-btn adm-btn--danger" onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** "2026-11-01 14:05:00" (UTC, as SQLite stores it) → local date and time. */
 function formatUtc(sql: string): string {
@@ -22,7 +42,7 @@ function formatCourseDate(sql: string): string {
   return d ? `${d}.${m}.${y}` : sql;
 }
 
-export function NewsletterTab() {
+export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
   const [entries, setEntries] = useState<NewsletterEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -30,10 +50,27 @@ export function NewsletterTab() {
   const [source, setSource] = useState<"" | "widget" | "course">("");
   const [courseType, setCourseType] = useState("");
   const [courseId, setCourseId] = useState("");
+  const [delTarget, setDelTarget] = useState<string | null>(null);
 
-  useEffect(() => {
-    getNewsletterAction().then(setEntries, () => setFailed(true)).finally(() => setLoading(false));
-  }, []);
+  const load = useCallback(
+    () => getNewsletterAction().then((list) => { setEntries(list); setFailed(false); }, () => setFailed(true)).finally(() => setLoading(false)),
+    [],
+  );
+
+  useEffect(() => { load(); }, [load]);
+
+  async function doDelete() {
+    if (!delTarget) return;
+    try {
+      await removeFromNewsletterAction(delTarget);
+      toast("Usunięto z listy: " + delTarget);
+    } catch {
+      toast("Nie udało się usunąć adresu.");
+    } finally {
+      setDelTarget(null);
+      await load();
+    }
+  }
 
   const types = useMemo(
     () => [...new Set(entries.flatMap((e) => (e.courseType ? [e.courseType] : [])))].sort(coll.compare),
@@ -119,7 +156,7 @@ export function NewsletterTab() {
       <div className="adm-tablewrap">
         <table className="adm-table">
           <thead>
-            <tr><th>E-mail</th><th>Źródło</th><th>Data zgody</th></tr>
+            <tr><th>E-mail</th><th>Źródło</th><th>Data zgody</th><th className="adm-th-act">Akcje</th></tr>
           </thead>
           <tbody>
             {view.map((e) => (
@@ -142,11 +179,16 @@ export function NewsletterTab() {
                   )}
                 </td>
                 <td className="adm-td-addr">{formatUtc(e.createdAt)}</td>
+                <td className="adm-td-act">
+                  <button className="adm-iconbtn adm-iconbtn--danger" title="Usuń z listy" onClick={() => setDelTarget(e.email)}>
+                    <TrashIcon />
+                  </button>
+                </td>
               </tr>
             ))}
             {view.length === 0 && (
               <tr>
-                <td colSpan={3} className="adm-empty">
+                <td colSpan={4} className="adm-empty">
                   {loading ? "Wczytywanie…" : failed ? "Nie udało się wczytać listy." : "Brak zapisów dla podanych kryteriów."}
                 </td>
               </tr>
@@ -154,6 +196,23 @@ export function NewsletterTab() {
           </tbody>
         </table>
       </div>
+
+      {delTarget && (() => {
+        const n = entries.filter((e) => e.email.toLowerCase() === delTarget.toLowerCase()).length;
+        return (
+          <Confirm
+            title="Usunąć z listy?"
+            text={
+              "Adres „" + delTarget + "” zniknie z listy newslettera" +
+              (n > 1 ? ` — razem ze wszystkimi ${n} wpisami tego adresu` : "") +
+              ". Zgłoszenia na kursy zostają, wycofana zostaje tylko zgoda na oferty. Tej operacji nie można cofnąć."
+            }
+            confirmLabel="Usuń"
+            onConfirm={doDelete}
+            onClose={() => setDelTarget(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

@@ -46,3 +46,16 @@ export async function adminListNewsletter(): Promise<NewsletterEntry[]> {
     }),
   }));
 }
+
+/**
+ * Takes an address off the list everywhere: drops its newsletter sign-up and
+ * withdraws the marketing consent on all its course bookings (the bookings
+ * themselves stay).
+ */
+export async function adminRemoveFromNewsletter(email: string): Promise<void> {
+  const DB = await db();
+  await DB.batch([
+    DB.prepare("DELETE FROM newsletter_subscribers WHERE email = ? COLLATE NOCASE").bind(email),
+    DB.prepare("UPDATE course_bookings SET marketing_consent = 0 WHERE lower(email) = lower(?)").bind(email),
+  ]);
+}

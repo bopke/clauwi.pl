@@ -460,7 +460,7 @@ export function AdminApp({ user }: { user: AdminUser }) {
         ) : tab === "kursy" ? (
           <CoursesTab toast={toast} onUnseenChange={onUnseenChange} />
         ) : tab === "newsletter" ? (
-          <NewsletterTab />
+          <NewsletterTab toast={toast} />
         ) : (
           <AccessTab currentEmail={user.email} toast={toast} />
         )}
