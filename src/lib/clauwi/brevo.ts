@@ -207,6 +207,7 @@ export async function sendCourseBookingEmails(params: {
     customerPhone: booking.phone,
     seats: booking.seats,
     message: booking.message,
+    marketingConsent: booking.marketingConsent,
   });
   const ics = await courseIcsAttachment(booking, course);
 

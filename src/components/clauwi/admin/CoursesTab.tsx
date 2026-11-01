@@ -339,7 +339,7 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
                       <td className="adm-td-name">
                         {b.firstName} {b.lastName}
                         {isNew(b) && <> <span className="adm-newbadge">nowe</span></>}
-                        <div className="adm-td-addr">zgoda RODO: {b.gdprConsent ? "tak" : "—"}</div>
+                        <div className="adm-td-addr">zgoda RODO: {b.gdprConsent ? "tak" : "—"} · zgoda na oferty: {b.marketingConsent ? "tak" : "nie"}</div>
                         {b.message && <div className="adm-td-addr">„{b.message}”</div>}
                       </td>
                       <td className="adm-td-addr">

@@ -42,6 +42,7 @@ function rowToBooking(r: Row): CourseBooking {
     seats: Number(r.seats ?? 1),
     message: (r.message as string) ?? "",
     gdprConsent: !!r.gdpr_consent,
+    marketingConsent: !!r.marketing_consent,
     status: (r.status as CourseBookingStatus) ?? "new",
     version: Number(r.version ?? 0),
     createdAt: (r.created_at as string) ?? "",
@@ -99,8 +100,8 @@ export async function createBooking(
   const id = "bkg" + crypto.randomUUID();
   const inserted = await DB.prepare(
     `INSERT INTO course_bookings
-       (id, course_id, first_name, last_name, email, phone, seats, message, gdpr_consent, status)
-     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new'
+       (id, course_id, first_name, last_name, email, phone, seats, message, gdpr_consent, marketing_consent, status)
+     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new'
      WHERE (
        SELECT COALESCE(SUM(seats), 0) FROM course_bookings
         WHERE course_id = ? AND status != 'cancelled'
@@ -112,7 +113,7 @@ export async function createBooking(
      RETURNING id`,
   ).bind(
     id, draft.courseId, draft.firstName, draft.lastName, draft.email, draft.phone,
-    draft.seats, draft.message, draft.gdprConsent ? 1 : 0,
+    draft.seats, draft.message, draft.gdprConsent ? 1 : 0, draft.marketingConsent ? 1 : 0,
     draft.courseId, draft.seats, draft.courseId,
     draft.courseId, draft.email,
   ).first<{ id: string }>();

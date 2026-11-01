@@ -33,6 +33,8 @@ export type CourseBooking = {
   message: string;
   /** Consent to process personal data — required when booking (GDPR). */
   gdprConsent: boolean;
+  /** Optional opt-in to e-mails about further courses and offers. */
+  marketingConsent: boolean;
   status: CourseBookingStatus;
   /**
    * Bumped on every change to the booking — feeds the SEQUENCE field of the

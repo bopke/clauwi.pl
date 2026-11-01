@@ -21,8 +21,9 @@ export function courseBookingOrganizerEmail(params: {
   customerPhone: string;
   seats: number;
   message: string;
+  marketingConsent: boolean;
 }): EmailContent {
-  const { courseName, location, startDateTime, customerName, customerEmail, customerPhone, seats, message } = params;
+  const { courseName, location, startDateTime, customerName, customerEmail, customerPhone, seats, message, marketingConsent } = params;
 
   return {
     subject: `${courseName} - nowe zgłoszenie`,
@@ -38,6 +39,7 @@ ${detailsBox([
   { label: "E-mail", value: `<a href="mailto:${escapeHtml(customerEmail)}" style="${S.link}">${escapeHtml(customerEmail)}</a>` },
   ...(customerPhone ? [{ label: "Telefon", value: escapeHtml(customerPhone) }] : []),
   { label: "Liczba osób", value: String(seats) },
+  { label: "Zgoda na oferty", value: marketingConsent ? "tak" : "nie" },
   ...(message ? [{ label: "Wiadomość", value: escapeMultiline(message) }] : []),
 ])}
 <p style="${S.small}">Zgłoszenie czeka w panelu, w zakładce „Kursy” → „Zgłoszenia”. Tam można potwierdzić udział albo anulować zgłoszenie — i przy okazji powiadomić o tym uczestnika.</p>`,

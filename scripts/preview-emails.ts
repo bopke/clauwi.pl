@@ -35,6 +35,7 @@ const templates = {
     customerPhone: "600 100 200",
     seats: 2,
     message: "Przyjadę z mężem, czy jest parking w pobliżu?",
+    marketingConsent: true,
   }),
   "03-status-confirmed": courseBookingConfirmedEmail(course),
   "04-status-cancelled": courseBookingCancelledEmail(course),

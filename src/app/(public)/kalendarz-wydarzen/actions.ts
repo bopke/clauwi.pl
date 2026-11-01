@@ -29,6 +29,7 @@ export async function submitBookingAction(formData: FormData): Promise<BookingFo
   const phone = String(formData.get("phone") ?? "").trim();
   const message = String(formData.get("message") ?? "").trim().slice(0, 2000);
   const gdprConsent = formData.get("gdprConsent") != null;
+  const marketingConsent = formData.get("marketingConsent") != null;
   // Hard cap — protects the public endpoint from abuse.
   const seats = Math.min(Math.max(Number(formData.get("seats") ?? 1) | 0, 1), 10);
 
@@ -43,7 +44,7 @@ export async function submitBookingAction(formData: FormData): Promise<BookingFo
     return { ok: false, error: "Weryfikacja bezpieczeństwa nie powiodła się. Spróbuj ponownie." };
   }
 
-  const result = await createBooking({ courseId, firstName, lastName, email, phone, seats, message, gdprConsent });
+  const result = await createBooking({ courseId, firstName, lastName, email, phone, seats, message, gdprConsent, marketingConsent });
   if (!result.ok) {
     return { ok: false, error: BOOKING_ERRORS[result.reason] };
   }

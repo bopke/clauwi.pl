@@ -58,6 +58,10 @@ export function BookingForm({ courseId, spotsLeft }: { courseId: string; spotsLe
           .
         </span>
       </label>
+      <label className="flex items-start gap-3 text-sm text-ink/70">
+        <input type="checkbox" name="marketingConsent" value="1" className="mt-1 size-4 shrink-0 accent-[#cb8c7c]" />
+        <span>Chcę otrzymywać e-mailem informacje o kolejnych kursach i ofertach ClauWi® (opcjonalnie).</span>
+      </label>
       <div ref={turnstileContainerRef} className="turnstile-widget" />
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
       <button
