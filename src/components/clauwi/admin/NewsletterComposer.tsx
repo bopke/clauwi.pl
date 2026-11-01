@@ -47,6 +47,24 @@ function plural(n: number, one: string, few: string, many: string): string {
 
 const noSubscribe = () => () => {};
 
+/**
+ * Markdown cheatsheet — each entry inserts its syntax into the body: `wrap`
+ * goes around the selection (or a sample text), `line` starts a new line.
+ * Mirrors what newsletter-template.ts renders.
+ */
+const MARKDOWN_HELP: { label: string; syntax: string; sample: string; wrap?: [string, string]; line?: string; block?: boolean }[] = [
+  { label: "Pogrubienie", syntax: "**tekst**", wrap: ["**", "**"], sample: "pogrubiony tekst" },
+  { label: "Kursywa", syntax: "*tekst*", wrap: ["*", "*"], sample: "kursywa" },
+  { label: "Link", syntax: "[tekst](https://…)", wrap: ["[", "](https://clauwi.pl)"], sample: "tekst linku" },
+  { label: "Nagłówek", syntax: "## Nagłówek", line: "## ", sample: "Nagłówek" },
+  { label: "Mniejszy nagłówek", syntax: "### Nagłówek", line: "### ", sample: "Nagłówek" },
+  { label: "Lista punktowana", syntax: "- punkt", line: "- ", sample: "punkt" },
+  { label: "Lista numerowana", syntax: "1. punkt", line: "1. ", sample: "punkt" },
+  { label: "Cytat / wyróżnienie", syntax: "> tekst", line: "> ", sample: "tekst" },
+  { label: "Linia oddzielająca", syntax: "---", line: "---", sample: "", block: true },
+  { label: "Obrazek", syntax: "![opis](https://…/obraz.jpg)", wrap: ["![", "](https://)"], sample: "opis obrazka" },
+];
+
 export function NewsletterComposer() {
   // Storage only exists in the browser — render the composer after hydration.
   const mounted = useSyncExternalStore(noSubscribe, () => true, () => false);
@@ -81,14 +99,14 @@ function Composer() {
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const lastField = useRef<Field>("body");
   // Caret to restore once an inserted placeholder has rendered.
-  const pendingCaret = useRef<{ el: HTMLInputElement | HTMLTextAreaElement; pos: number } | null>(null);
+  const pendingCaret = useRef<{ el: HTMLInputElement | HTMLTextAreaElement; start: number; end: number } | null>(null);
 
   useLayoutEffect(() => {
     const c = pendingCaret.current;
     if (!c) return;
     pendingCaret.current = null;
     c.el.focus();
-    c.el.setSelectionRange(c.pos, c.pos);
+    c.el.setSelectionRange(c.start, c.end);
   }, [draft]);
 
   useEffect(() => {
@@ -109,15 +127,34 @@ function Composer() {
     } catch {}
   }
 
-  function insert(key: string) {
-    const field = lastField.current;
+  /**
+   * Replaces the field's selection with before + middle + after, then selects
+   * `middle` (or puts the caret after everything when it's empty).
+   */
+  function replaceSelection(field: Field, build: (selected: string, value: string, start: number) => [string, string, string]) {
     const el = (field === "subject" ? subjectRef : field === "heading" ? headingRef : bodyRef).current;
-    const token = `{{${key}}}`;
     const value = draft[field];
     const start = el?.selectionStart ?? value.length;
     const end = el?.selectionEnd ?? value.length;
-    if (el) pendingCaret.current = { el, pos: start + token.length };
-    update(field, value.slice(0, start) + token + value.slice(end));
+    const [before, middle, after] = build(value.slice(start, end), value, start);
+    const selStart = start + before.length;
+    if (el) pendingCaret.current = middle ? { el, start: selStart, end: selStart + middle.length } : { el, start: selStart + after.length, end: selStart + after.length };
+    update(field, value.slice(0, start) + before + middle + after + value.slice(end));
+  }
+
+  function insert(key: string) {
+    replaceSelection(lastField.current, () => [`{{${key}}}`, "", ""]);
+  }
+
+  // Formatting only means something in the body, so it always goes there.
+  function insertMarkdown(item: (typeof MARKDOWN_HELP)[number]) {
+    replaceSelection("body", (selected, value, start) => {
+      const text = selected || item.sample;
+      if (item.wrap) return [item.wrap[0], text, item.wrap[1]];
+      const atLineStart = start === 0 || value[start - 1] === "\n";
+      if (item.block) return [(atLineStart ? "\n" : "\n\n") + item.line!, "", "\n\n"];
+      return [(atLineStart ? "" : "\n") + item.line!, text, ""];
+    });
   }
 
   const total = preview?.total ?? 0;
@@ -176,7 +213,7 @@ function Composer() {
           <label className="adm-f adm-compose__body">
             <span>Treść</span>
             <textarea ref={bodyRef} value={draft.body} onFocus={() => (lastField.current = "body")} onChange={(e) => update("body", e.target.value)} />
-            <small>Pusta linia zaczyna nowy akapit. Adresy http(s)://… stają się linkami.</small>
+            <small>Formatowanie w Markdownie — ściągawka poniżej. Pusta linia zaczyna nowy akapit.</small>
           </label>
           {unknown.length > 0 && (
             <p className="adm-compose__warn">
@@ -206,6 +243,26 @@ function Composer() {
                 </ul>
               </div>
             ))}
+          </details>
+
+          <details className="adm-compose__fields adm-compose__md">
+            <summary>Formatowanie (Markdown)</summary>
+            <p>Kliknij, aby wstawić do treści — zaznaczony tekst zostanie objęty formatowaniem.</p>
+            <ul>
+              {MARKDOWN_HELP.map((m) => (
+                <li key={m.label}>
+                  <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insertMarkdown(m)}>
+                    <code>{m.syntax}</code>
+                    <span>{m.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p>
+              Enter przechodzi do nowej linii, pusta linia zaczyna nowy akapit. Adresy http(s)://… same stają się linkami. Pola personalizacji działają
+              także wewnątrz formatowania, np. <code>{"**{{imie}}**"}</code> albo <code>{"[zapisz się](https://clauwi.pl/kalendarz-wydarzen)"}</code>. Kod
+              HTML nie jest obsługiwany — pojawi się jako zwykły tekst.
+            </p>
           </details>
         </section>
 

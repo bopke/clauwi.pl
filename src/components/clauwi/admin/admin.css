@@ -314,6 +314,7 @@
 .adm-compose__fields li button { width: 100%; display: grid; grid-template-columns: 170px 1fr auto; gap: 12px; align-items: center; padding: 7px 10px; border: none; border-radius: 9px; background: none; text-align: left; cursor: pointer; font-size: 14px; color: var(--ink); }
 .adm-compose__fields li button:hover { background: #fbf1ed; }
 .adm-compose__fields code { font-size: 13px; color: var(--green-d); }
+.adm-compose__md li button { grid-template-columns: 230px 1fr; }
 .adm-compose__fields em { font-style: normal; color: var(--ink-soft); font-size: 13px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .adm-compose__preview { position: sticky; top: 90px; background: #fff; border: 1.5px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; height: calc(100vh - 120px); }
 .adm-compose__pvhead { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: #faf8f1; }

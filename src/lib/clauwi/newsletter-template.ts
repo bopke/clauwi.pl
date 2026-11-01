@@ -1,10 +1,15 @@
 // Templating for newsletter mailings (shared by the composer's live preview
 // and, later, the sending).
 //
-// A message is plain text with placeholders: {{imie}}, {{kurs.miejsce}}…
+// A message is Markdown with placeholders: {{imie}}, {{kurs.miejsce}}…
 // Each can carry a fallback for recipients who lack that detail (newsletter
 // card sign-ups have no name or course): {{imie|Drogi Rodzicu}}.
+//
+// Markdown goes through `marked` with every element rendered with inline
+// styles (mail clients drop <style>), raw HTML escaped rather than passed
+// through, and only http(s)/mailto/tel links allowed.
 
+import { Marked, type Tokens } from "marked";
 import { escapeHtml, EMAIL_STYLES, renderEmail, type RenderedEmail } from "./email-templates/layout";
 import type { NewsletterRecipient } from "./newsletter";
 
@@ -51,36 +56,87 @@ export function unknownPlaceholders(text: string): string[] {
   return [...new Set([...text.matchAll(TOKEN)].map((m) => m[1]).filter((k) => !BY_KEY.has(k)))];
 }
 
-/** Fills the placeholders in (as plain text — escaping is the caller's job). */
-export function fillTemplate(text: string, r: NewsletterRecipient): string {
+/** Fills the placeholders in; `escape` is applied to each inserted value. */
+export function fillTemplate(text: string, r: NewsletterRecipient, escape: (s: string) => string = (s) => s): string {
   return text.replace(TOKEN, (whole, key: string, fallback?: string) => {
     const p = BY_KEY.get(key);
     if (!p) return whole;
     const v = p.value(r).trim();
-    return v || (fallback ?? "").trim();
+    return escape(v || (fallback ?? "").trim());
   });
 }
 
-const URL_RE = /\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)\]"']/g;
+const BRAND = "#cb8c7c";
+const INK = "#181818";
+const MUTED = "#7c736d";
+const HEADING_FONT = "'Cormorant Garamond', Cormorant, Georgia, 'Times New Roman', serif";
+const BODY_FONT = "Montserrat, 'Helvetica Neue', Helvetica, Arial, sans-serif";
 
-/**
- * Plain text → e-mail HTML: blank lines split paragraphs, single newlines
- * become line breaks, addresses become links. Placeholders are filled first
- * and the result escaped as a whole, values included.
- */
+const SAFE_URL = /^(https?:|mailto:|tel:)/i;
+
+// The cheatsheet in the composer lists what this supports — keep them in step.
+const markdown = new Marked({
+  gfm: true,
+  // A single newline is a line break, as people expect from a plain textarea.
+  breaks: true,
+  renderer: {
+    paragraph({ tokens }) {
+      return `<p style="${EMAIL_STYLES.p}">${this.parser.parseInline(tokens)}</p>\n`;
+    },
+    heading({ tokens, depth }) {
+      const size = depth <= 1 ? 24 : depth === 2 ? 21 : 18;
+      return `<h${depth} style="margin: 24px 0 10px; font-family: ${HEADING_FONT}; font-size: ${size}px; line-height: 1.3; font-weight: 600; color: ${BRAND};">${this.parser.parseInline(tokens)}</h${depth}>\n`;
+    },
+    list(token) {
+      const tag = token.ordered ? "ol" : "ul";
+      const items = token.items.map((item) => this.listitem(item)).join("");
+      return `<${tag} style="margin: 0 0 16px; padding-left: 24px; font-family: ${BODY_FONT}; font-size: 15px; line-height: 1.7; color: ${INK};">${items}</${tag}>\n`;
+    },
+    listitem(item: Tokens.ListItem) {
+      return `<li style="margin: 0 0 6px;">${this.parser.parse(item.tokens)}</li>`;
+    },
+    blockquote({ tokens }) {
+      return `<blockquote style="margin: 0 0 16px; padding: 4px 0 4px 16px; border-left: 3px solid ${BRAND}; color: ${MUTED};">${this.parser.parse(tokens)}</blockquote>\n`;
+    },
+    hr() {
+      return `<hr style="margin: 24px 0; border: 0; border-top: 1px solid #eadfd9;">\n`;
+    },
+    link({ href, tokens }) {
+      const text = this.parser.parseInline(tokens);
+      if (!SAFE_URL.test(href)) return text;
+      return `<a href="${escapeHtml(href)}" style="${EMAIL_STYLES.link}">${text}</a>`;
+    },
+    image({ href, text }) {
+      if (!/^https?:/i.test(href)) return escapeHtml(text);
+      return `<img src="${escapeHtml(href)}" alt="${escapeHtml(text)}" style="display: block; max-width: 100%; height: auto; margin: 0 0 16px; border: 0;">`;
+    },
+    strong({ tokens }) {
+      return `<strong>${this.parser.parseInline(tokens)}</strong>`;
+    },
+    em({ tokens }) {
+      return `<em>${this.parser.parseInline(tokens)}</em>`;
+    },
+    codespan({ text }) {
+      return `<code style="font-family: Menlo, Consolas, monospace; font-size: 13px; background: #faf7f5; padding: 1px 4px;">${text}</code>`;
+    },
+    code({ text }) {
+      return `<pre style="margin: 0 0 16px; padding: 12px; background: #faf7f5; font-family: Menlo, Consolas, monospace; font-size: 13px; white-space: pre-wrap;">${escapeHtml(text)}</pre>\n`;
+    },
+    // Raw HTML in the message is shown as text, never rendered.
+    html({ text }) {
+      return escapeHtml(text);
+    },
+  },
+});
+
+/** Backslash-escapes Markdown syntax, so a filled-in value is always literal text. */
+function escapeMarkdown(s: string): string {
+  return s.replace(/[\\`*_{}\[\]()#+\-.!|<>~]/g, "\\$&");
+}
+
+/** Markdown → e-mail HTML, placeholders filled in first (as literal text). */
 function bodyToHtml(text: string, r: NewsletterRecipient): string {
-  return text
-    .replace(/\r\n/g, "\n")
-    .split(/\n{2,}/)
-    .map((para) => para.trim())
-    .filter(Boolean)
-    .map((para) => {
-      const html = escapeHtml(fillTemplate(para, r))
-        .replace(URL_RE, (url) => `<a href="${url}" style="${EMAIL_STYLES.link}">${url}</a>`)
-        .replace(/\n/g, "<br>");
-      return `<p style="${EMAIL_STYLES.p}">${html}</p>`;
-    })
-    .join("\n");
+  return markdown.parse(fillTemplate(text.replace(/\r\n/g, "\n"), r, escapeMarkdown), { async: false });
 }
 
 /** The finished e-mail for one recipient. */
