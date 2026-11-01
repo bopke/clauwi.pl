@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { NewsletterComposer } from "@/components/clauwi/admin/NewsletterComposer";
+import { MessageComposer } from "@/components/clauwi/admin/MessageComposer";
 
 export const metadata: Metadata = {
   title: "Nowa wiadomość — Newsletter — ClauWi®",
@@ -15,5 +15,5 @@ export const dynamic = "force-dynamic";
 export default async function NewsletterMessagePage() {
   const session = await auth();
   if (!session?.user?.email) redirect("/admin");
-  return <NewsletterComposer />;
+  return <MessageComposer kind="newsletter" />;
 }

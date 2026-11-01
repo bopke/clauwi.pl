@@ -5,6 +5,7 @@
 // management.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { TYPE_SUGGESTIONS } from "@/lib/clauwi/courses";
 import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus } from "@/lib/clauwi/courses";
 import {
@@ -12,6 +13,7 @@ import {
   getBookingsForCourseAction, updateBookingStatusAction, updateBookingAction, deleteBookingAction,
   getUnseenBookingCountsAction, markCourseSeenAction,
 } from "@/app/admin/actions";
+import { COURSE_MESSAGE_KEY } from "./MessageComposer";
 
 const coll = new Intl.Collator("pl");
 
@@ -246,6 +248,9 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
   // When this admin last opened the list before now ("" until known, null if
   // never) — bookings created after it get the "nowe" mark for this visit.
   const [seenBefore, setSeenBefore] = useState<string | null | "">("");
+  // Participants ticked for "Napisz do zaznaczonych".
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const router = useRouter();
 
   const refresh = useCallback(async () => {
     setBookings(await getBookingsForCourseAction(course.id));
@@ -311,6 +316,29 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
 
   const totalPersons = bookings.filter((b) => b.status !== "cancelled").reduce((n, b) => n + b.seats, 0);
 
+  // "Select all" means everyone still taking part — cancelled bookings can
+  // be ticked one by one if they should hear about it too.
+  const active = bookings.filter((b) => b.status !== "cancelled");
+  // Only ids still on the list count (a booking may have been deleted).
+  const pickedIds = bookings.filter((b) => picked.has(b.id)).map((b) => b.id);
+  const allActivePicked = active.length > 0 && active.every((b) => picked.has(b.id));
+
+  function togglePick(id: string) {
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function composeToPicked() {
+    try {
+      sessionStorage.setItem(COURSE_MESSAGE_KEY, JSON.stringify({ courseId: course.id, bookingIds: pickedIds }));
+    } catch {}
+    router.push("/admin/kursy/wiadomosc");
+  }
+
   return (
     <div className="adm-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="adm-sheet" style={{ maxWidth: 720 }}>
@@ -328,14 +356,36 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
           ) : bookings.length === 0 ? (
             <p className="adm-empty">Brak zgłoszeń na ten kurs.</p>
           ) : (
+            <>
+            <div className="adm-pickbar">
+              <span className="adm-count">Zaznaczono: {pickedIds.length}</span>
+              <button type="button" className="adm-btn adm-btn--solid" disabled={pickedIds.length === 0} onClick={composeToPicked}>
+                Napisz do zaznaczonych{pickedIds.length > 0 && ` (${pickedIds.length})`}
+              </button>
+            </div>
             <div className="adm-tablewrap">
               <table className="adm-table">
                 <thead>
-                  <tr><th>Osoba</th><th>Kontakt</th><th>Osoby</th><th>Status</th><th className="adm-th-act">Akcje</th></tr>
+                  <tr>
+                    <th className="adm-th-pick">
+                      <input
+                        type="checkbox"
+                        aria-label="Zaznacz wszystkich uczestników (bez anulowanych)"
+                        title="Zaznacz wszystkich uczestników (bez anulowanych)"
+                        checked={allActivePicked}
+                        disabled={active.length === 0}
+                        onChange={() => setPicked(allActivePicked ? new Set() : new Set(active.map((b) => b.id)))}
+                      />
+                    </th>
+                    <th>Osoba</th><th>Kontakt</th><th>Osoby</th><th>Status</th><th className="adm-th-act">Akcje</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {bookings.map((b) => (
                     <tr key={b.id} className={isNew(b) ? "adm-row--new" : undefined}>
+                      <td className="adm-th-pick">
+                        <input type="checkbox" aria-label={`Zaznacz: ${b.firstName} ${b.lastName}`} checked={picked.has(b.id)} onChange={() => togglePick(b.id)} />
+                      </td>
                       <td className="adm-td-name">
                         {b.firstName} {b.lastName}
                         {isNew(b) && <> <span className="adm-newbadge">nowe</span></>}
@@ -367,6 +417,7 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
         <div className="adm-sheet__foot">

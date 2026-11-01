@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { NEWSLETTER_PAGE_SIZE, type NewsletterCourse, type NewsletterFilters, type NewsletterPage, type NewsletterQuery } from "@/lib/clauwi/newsletter";
 import { getNewsletterAction, getNewsletterCoursesAction, removeFromNewsletterAction } from "@/app/admin/actions";
 import { CoursePickerModal } from "./CoursePickerModal";
-import { NEWSLETTER_FILTERS_KEY } from "./NewsletterComposer";
+import { NEWSLETTER_FILTERS_KEY } from "./MessageComposer";
 
 const coll = new Intl.Collator("pl");
 

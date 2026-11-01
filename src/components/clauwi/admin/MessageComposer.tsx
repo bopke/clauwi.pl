@@ -1,22 +1,56 @@
 "use client";
 
-// Composer for a mailing to the people picked on the "Newsletter" tab: the
-// message on the left, a live preview on the right, rendered for one real
+// Message composer, in two modes:
+// - "newsletter": a mailing to the people picked on the "Newsletter" tab
+//   (sending comes later),
+// - "course": a message to participants ticked on a course's booking list.
+// The message on the left, a live preview on the right, rendered for one real
 // recipient at a time so the placeholders can be checked.
 //
-// The tab hands the filters over in sessionStorage (a course selection can be
-// hundreds of ids — too long for a URL). The draft is kept in localStorage so
-// leaving the page doesn't lose it.
+// The calling list hands the recipients over in sessionStorage (a selection
+// can be hundreds of ids — too long for a URL). Drafts are kept in
+// localStorage, one per mode, so leaving the page doesn't lose them.
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { NewsletterFilters, NewsletterRecipient } from "@/lib/clauwi/newsletter";
-import { buildNewsletterEmail, PLACEHOLDERS, unknownPlaceholders, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
-import { getNewsletterRecipientAction } from "@/app/admin/actions";
+import { buildMessageEmail, PLACEHOLDERS, unknownPlaceholders, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
+import { COURSE_MESSAGE_CHUNK, type Course } from "@/lib/clauwi/courses";
+import { getCourseMessageAction, getNewsletterRecipientAction, sendCourseMessageAction } from "@/app/admin/actions";
 import "./admin.css";
 
+export type ComposerKind = "newsletter" | "course";
+
+/** sessionStorage: NewsletterFilters from the newsletter tab. */
 export const NEWSLETTER_FILTERS_KEY = "clauwi-newsletter-filters";
-const DRAFT_KEY = "clauwi-newsletter-draft";
+/** sessionStorage: { courseId, bookingIds } from a course's booking list. */
+export const COURSE_MESSAGE_KEY = "clauwi-course-message";
+const DRAFT_KEYS: Record<ComposerKind, string> = {
+  newsletter: "clauwi-newsletter-draft",
+  course: "clauwi-course-message-draft",
+};
+
+type Target =
+  | { kind: "newsletter"; filters: NewsletterFilters }
+  | { kind: "course"; courseId: string; bookingIds: string[] };
+
+/** What the calling list left in sessionStorage for this mode. */
+function readTarget(kind: ComposerKind): Target | null {
+  try {
+    const raw = read(() => sessionStorage, kind === "newsletter" ? NEWSLETTER_FILTERS_KEY : COURSE_MESSAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return kind === "newsletter" ? { kind, filters: data as NewsletterFilters } : { kind, courseId: String(data.courseId), bookingIds: data.bookingIds as string[] };
+  } catch {
+    return null;
+  }
+}
+
+/** "2026-12-05 10:00" → "05.12.2026". */
+function shortDate(sql: string): string {
+  const [y, m, d] = sql.slice(0, 10).split("-");
+  return d ? `${d}.${m}.${y}` : sql;
+}
 
 const EMPTY_DRAFT: NewsletterDraft = {
   subject: "",
@@ -65,33 +99,36 @@ const MARKDOWN_HELP: { label: string; syntax: string; sample: string; wrap?: [st
   { label: "Obrazek", syntax: "![opis](https://…/obraz.jpg)", wrap: ["![", "](https://)"], sample: "opis obrazka" },
 ];
 
-export function NewsletterComposer() {
+export function MessageComposer({ kind }: { kind: ComposerKind }) {
   // Storage only exists in the browser — render the composer after hydration.
   const mounted = useSyncExternalStore(noSubscribe, () => true, () => false);
-  return mounted ? <Composer /> : null;
+  return mounted ? <Composer kind={kind} /> : null;
 }
+
+type Sending =
+  | { phase: "confirm" }
+  | { phase: "sending"; done: number; total: number }
+  | { phase: "done"; sent: number; failed: string[]; failedIds: string[] };
 
 type Field = keyof NewsletterDraft;
 
-function Composer() {
-  const [filters] = useState<NewsletterFilters | null>(() => {
-    const raw = read(() => sessionStorage, NEWSLETTER_FILTERS_KEY);
-    try {
-      return raw ? (JSON.parse(raw) as NewsletterFilters) : null;
-    } catch {
-      return null;
-    }
-  });
+function Composer({ kind }: { kind: ComposerKind }) {
+  const [target] = useState<Target | null>(() => readTarget(kind));
+  const draftKey = DRAFT_KEYS[kind];
   const [draft, setDraft] = useState<NewsletterDraft>(() => {
     try {
-      return { ...EMPTY_DRAFT, ...JSON.parse(read(() => localStorage, DRAFT_KEY) ?? "{}") };
+      return { ...EMPTY_DRAFT, ...JSON.parse(read(() => localStorage, draftKey) ?? "{}") };
     } catch {
       return EMPTY_DRAFT;
     }
   });
   const [index, setIndex] = useState(0);
+  // Newsletter: recipients are fetched one at a time (the list can be huge).
   const [preview, setPreview] = useState<{ recipient: NewsletterRecipient | null; total: number } | null>(null);
+  // Course: the few chosen participants are fetched at once.
+  const [courseData, setCourseData] = useState<{ course: Course; recipients: NewsletterRecipient[]; bookingIds: string[] } | null>(null);
   const [failed, setFailed] = useState(false);
+  const [sending, setSending] = useState<Sending | null>(null);
 
   // Where "insert" puts a placeholder: the field last focused, at its caret.
   const subjectRef = useRef<HTMLInputElement>(null);
@@ -110,21 +147,62 @@ function Composer() {
   }, [draft]);
 
   useEffect(() => {
-    if (!filters) return;
+    if (target?.kind !== "newsletter") return;
     let stale = false;
-    getNewsletterRecipientAction(filters, index).then(
+    getNewsletterRecipientAction(target.filters, index).then(
       (res) => { if (!stale) { setPreview(res); setFailed(false); } },
       () => { if (!stale) setFailed(true); },
     );
     return () => { stale = true; };
-  }, [filters, index]);
+  }, [target, index]);
+
+  useEffect(() => {
+    if (target?.kind !== "course") return;
+    getCourseMessageAction(target.courseId, target.bookingIds).then(
+      (res) => (res ? setCourseData(res) : setFailed(true)),
+      () => setFailed(true),
+    );
+  }, [target]);
 
   function update(field: Field, value: string) {
     const next = { ...draft, [field]: value };
     setDraft(next);
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+      localStorage.setItem(draftKey, JSON.stringify(next));
     } catch {}
+  }
+
+  /**
+   * Course mode: sends to everyone chosen — or, retrying, to `only` those it
+   * failed for — chunk by chunk, showing progress.
+   */
+  async function send(only?: string[]) {
+    if (target?.kind !== "course" || !courseData) return;
+    const ids = only ?? courseData.bookingIds;
+    // recipients[i] belongs to bookingIds[i]
+    const emailOf = new Map(courseData.bookingIds.map((id, i) => [id, courseData.recipients[i].email]));
+    let sent = 0;
+    const failedTo: string[] = [];
+    setSending({ phase: "sending", done: 0, total: ids.length });
+    for (let i = 0; i < ids.length; i += COURSE_MESSAGE_CHUNK) {
+      const chunk = ids.slice(i, i + COURSE_MESSAGE_CHUNK);
+      try {
+        const res = await sendCourseMessageAction(target.courseId, chunk, draft);
+        sent += res.sent;
+        failedTo.push(...res.failed);
+      } catch {
+        // The whole chunk failed (e.g. network) — report its addresses.
+        failedTo.push(...chunk.map((id) => emailOf.get(id) ?? id));
+      }
+      setSending({ phase: "sending", done: Math.min(i + chunk.length, ids.length), total: ids.length });
+    }
+    const failedSet = new Set(failedTo);
+    setSending({ phase: "done", sent, failed: failedTo, failedIds: ids.filter((id) => failedSet.has(emailOf.get(id) ?? "")) });
+    if (failedTo.length === 0) {
+      try {
+        localStorage.removeItem(draftKey);
+      } catch {}
+    }
   }
 
   /**
@@ -157,49 +235,122 @@ function Composer() {
     });
   }
 
-  const total = preview?.total ?? 0;
-  const recipient = preview?.recipient ?? (preview && total === 0 ? SAMPLE : null);
-  const email = useMemo(
-    // The real link gets each recipient's own token at send time.
-    () => (recipient ? buildNewsletterEmail(draft, recipient, { baseUrl: window.location.origin, unsubscribeUrl: unsubscribeUrl(window.location.origin, "podglad") }) : null),
-    [draft, recipient],
-  );
+  const view =
+    target?.kind === "course"
+      ? courseData && { recipient: courseData.recipients[index] ?? null, total: courseData.recipients.length }
+      : preview;
+  const total = view?.total ?? 0;
+  const recipient = view?.recipient ?? (view && total === 0 ? SAMPLE : null);
+  const email = useMemo(() => {
+    if (!recipient) return null;
+    const baseUrl = window.location.origin;
+    // Newsletter mailings carry an unsubscribe link (each recipient's own at
+    // send time); messages about a course booking don't.
+    return buildMessageEmail(draft, recipient, kind === "newsletter" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "podglad") } : { baseUrl });
+  }, [draft, recipient, kind]);
   const unknown = useMemo(() => unknownPlaceholders(`${draft.subject} ${draft.heading} ${draft.body}`), [draft]);
 
-  if (!filters) {
+  const backHref = kind === "newsletter" ? "/admin?tab=newsletter" : "/admin?tab=kursy";
+  if (!target) {
     return (
       <div className="adm-root">
         <main className="adm-main">
           <p className="adm-empty">
-            Nie wybrano odbiorców. <Link href="/admin?tab=newsletter">Wróć do listy newslettera</Link> i kliknij „Wyślij do…”.
+            Nie wybrano odbiorców.{" "}
+            {kind === "newsletter" ? (
+              <><Link href={backHref}>Wróć do listy newslettera</Link> i kliknij „Wyślij do…”.</>
+            ) : (
+              <><Link href={backHref}>Wróć do kursów</Link>, otwórz zgłoszenia kursu, zaznacz uczestników i kliknij „Napisz do zaznaczonych”.</>
+            )}
           </p>
         </main>
       </div>
     );
   }
 
-  const summary = [
-    filters.source === "widget" ? "widżet newslettera" : filters.source === "course" ? "zapisy na kursy" : null,
-    filters.courseType || null,
-    filters.courseIds.length ? `${filters.courseIds.length} ${plural(filters.courseIds.length, "wybrany kurs", "wybrane kursy", "wybranych kursów")}` : null,
-    filters.q ? `„${filters.q}”` : null,
-  ].filter(Boolean);
+  const summary =
+    target.kind === "newsletter"
+      ? [
+          target.filters.source === "widget" ? "widżet newslettera" : target.filters.source === "course" ? "zapisy na kursy" : null,
+          target.filters.courseType || null,
+          target.filters.courseIds.length ? `${target.filters.courseIds.length} ${plural(target.filters.courseIds.length, "wybrany kurs", "wybrane kursy", "wybranych kursów")}` : null,
+          target.filters.q ? `„${target.filters.q}”` : null,
+        ].filter(Boolean)
+      : courseData
+        ? [`uczestnicy kursu ${courseData.course.name} (${shortDate(courseData.course.startsAt)})`]
+        : [];
+  const canSend = kind === "course" && total > 0 && draft.subject.trim() !== "" && draft.body.trim() !== "" && !sending;
+  const people = `${total} ${plural(total, "osoby", "osób", "osób")}`;
 
   return (
     <div className="adm-root">
       <header className="adm-top">
-        <Link href="/admin?tab=newsletter" className="adm-btn adm-btn--ghost">← Lista newslettera</Link>
+        <Link href={backHref} className="adm-btn adm-btn--ghost">← {kind === "newsletter" ? "Lista newslettera" : "Kursy"}</Link>
         <div className="adm-compose__to">
-          <b>Nowa wiadomość</b>
+          <b>{kind === "newsletter" ? "Nowa wiadomość" : "Wiadomość do uczestników"}</b>
           <span>
-            do {preview ? `${total} ${plural(total, "osoby", "osób", "osób")}` : "…"}
+            do {view ? people : "…"}
             {summary.length > 0 && <> · {summary.join(" · ")}</>}
           </span>
         </div>
-        <button type="button" className="adm-btn adm-btn--solid" disabled title="Wysyłka będzie dostępna w kolejnym kroku">
-          Wyślij do {total} {plural(total, "osoby", "osób", "osób")}
-        </button>
+        {kind === "newsletter" ? (
+          <button type="button" className="adm-btn adm-btn--solid" disabled title="Wysyłka newslettera będzie dostępna w kolejnym kroku">
+            Wyślij do {people}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="adm-btn adm-btn--solid"
+            disabled={!canSend}
+            title={canSend ? undefined : "Uzupełnij temat i treść"}
+            onClick={() => setSending({ phase: "confirm" })}
+          >
+            Wyślij do {people}
+          </button>
+        )}
       </header>
+
+      {sending && (
+        <div className="adm-modal">
+          <div className="adm-confirm">
+            {sending.phase === "confirm" ? (
+              <>
+                <h2>Wysłać wiadomość?</h2>
+                <p>
+                  „{draft.subject}” trafi do {people}
+                  {courseData && <> — uczestników kursu {courseData.course.name}</>}. Każdy dostanie osobny e-mail, odpowiedzi przyjdą na
+                  kontakt@clauwi.pl. Wysłanej wiadomości nie można cofnąć.
+                </p>
+                <div className="adm-confirm__foot">
+                  <button className="adm-btn adm-btn--ghost" onClick={() => setSending(null)}>Anuluj</button>
+                  <button className="adm-btn adm-btn--solid" onClick={() => send()}>Wyślij</button>
+                </div>
+              </>
+            ) : sending.phase === "sending" ? (
+              <>
+                <h2>Wysyłanie…</h2>
+                <p>{sending.done} / {sending.total} — nie zamykaj tej strony.</p>
+              </>
+            ) : (
+              <>
+                <h2>{sending.failed.length === 0 ? "Wysłano" : "Wysłano z błędami"}</h2>
+                <p>
+                  Wysłano do {sending.sent} {plural(sending.sent, "osoby", "osób", "osób")}.
+                  {sending.failed.length > 0 && <> Nie udało się wysłać do: {sending.failed.join(", ")}.</>}
+                </p>
+                <div className="adm-confirm__foot">
+                  {sending.failedIds.length > 0 && (
+                    <button className="adm-btn adm-btn--ghost" onClick={() => send(sending.failedIds)}>
+                      Ponów dla nieudanych ({sending.failedIds.length})
+                    </button>
+                  )}
+                  <Link href={backHref} className="adm-btn adm-btn--solid">Wróć do kursów</Link>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <main className="adm-compose">
         <section className="adm-compose__edit">

@@ -295,6 +295,13 @@
 .adm-tabs__count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-left: 7px; padding: 0 6px; border-radius: 999px; background: var(--green-d); color: #fff; font-size: 12px; line-height: 1; vertical-align: 1px; }
 .adm-tabs button.is-active .adm-tabs__count { background: #fff; color: var(--green-d); }
 
+/* ----- Picking participants in a course's booking list ----- */
+.adm-pickbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.adm-pickbar .adm-btn { padding: 9px 16px; }
+.adm-pickbar .adm-btn:disabled { opacity: .5; cursor: default; }
+.adm-table .adm-th-pick { width: 36px; padding-right: 0; }
+.adm-th-pick input { width: 17px; height: 17px; accent-color: var(--green); cursor: pointer; }
+
 /* ----- Newsletter composer ----- */
 .adm-compose__to { display: flex; flex-direction: column; margin-right: auto; min-width: 0; }
 .adm-compose__to b { color: var(--green-d); font-size: 17px; }
