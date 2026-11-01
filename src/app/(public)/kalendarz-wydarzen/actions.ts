@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import { createBooking } from "@/lib/clauwi/courses-repo";
 import { verifyTurnstileToken } from "@/lib/clauwi/turnstile";
 import { sendCourseBookingEmails } from "@/lib/clauwi/brevo";
+import { unsuppressNewsletterEmail } from "@/lib/clauwi/newsletter-repo";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -47,6 +48,15 @@ export async function submitBookingAction(formData: FormData): Promise<BookingFo
   const result = await createBooking({ courseId, firstName, lastName, email, phone, seats, message, gdprConsent, marketingConsent });
   if (!result.ok) {
     return { ok: false, error: BOOKING_ERRORS[result.reason] };
+  }
+
+  // Ticking the marketing box is fresh consent — it lifts an earlier unsubscribe.
+  if (marketingConsent) {
+    try {
+      await unsuppressNewsletterEmail(email);
+    } catch (e) {
+      console.error("lifting newsletter suppression failed", e);
+    }
   }
 
   // The booking is already saved — don't fail the user-facing result if the

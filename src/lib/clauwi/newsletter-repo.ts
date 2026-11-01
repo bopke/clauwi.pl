@@ -10,27 +10,74 @@ async function db(): Promise<D1Database> {
   return env.DB;
 }
 
-/** Stores a newsletter-bar sign-up; an address already on the list is left as is. */
+/**
+ * Stores a newsletter-card sign-up; an address already on the list is left as
+ * is. Signing up is fresh consent, so it lifts an earlier unsubscribe.
+ */
 export async function addNewsletterSubscriber(email: string): Promise<void> {
   const DB = await db();
-  await DB.prepare("INSERT OR IGNORE INTO newsletter_subscribers (email) VALUES (?)").bind(email).run();
+  await DB.batch([
+    DB.prepare("INSERT OR IGNORE INTO newsletter_subscribers (email) VALUES (?)").bind(email),
+    DB.prepare("DELETE FROM newsletter_suppressions WHERE email = ?").bind(email),
+  ]);
+}
+
+// ----- Unsubscribing -----
+
+export type SuppressionReason = "link" | "one-click" | "admin" | "provider-unsubscribe" | "provider-spam" | "provider-bounce";
+
+/** Stops mailings to an address. Repeating it keeps the first reason and date. */
+export async function suppressNewsletterEmail(email: string, reason: SuppressionReason): Promise<void> {
+  const DB = await db();
+  await DB.prepare("INSERT OR IGNORE INTO newsletter_suppressions (email, reason) VALUES (?, ?)").bind(email.trim(), reason).run();
+}
+
+/** Lifts a suppression — the person signed up again or undid the unsubscribe. */
+export async function unsuppressNewsletterEmail(email: string): Promise<void> {
+  const DB = await db();
+  await DB.prepare("DELETE FROM newsletter_suppressions WHERE email = ?").bind(email).run();
+}
+
+/** The address's unsubscribe token, created on first use. */
+export async function newsletterTokenFor(email: string): Promise<string> {
+  const DB = await db();
+  // 24 random bytes, URL-safe — unguessable, and no e-mail address in the link.
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  const fresh = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  await DB.prepare("INSERT OR IGNORE INTO newsletter_tokens (token, email) VALUES (?, ?)").bind(fresh, email.trim()).run();
+  const row = await DB.prepare("SELECT token FROM newsletter_tokens WHERE email = ?").bind(email.trim()).first<{ token: string }>();
+  return row!.token;
+}
+
+/** Who an unsubscribe token belongs to, and whether they're already unsubscribed. */
+export async function findNewsletterToken(token: string): Promise<{ email: string; suppressed: boolean } | null> {
+  const DB = await db();
+  const row = await DB.prepare(
+    `SELECT t.email, s.email IS NOT NULL AS suppressed
+       FROM newsletter_tokens t LEFT JOIN newsletter_suppressions s ON s.email = t.email
+      WHERE t.token = ?`,
+  ).bind(token).first<{ email: string; suppressed: number }>();
+  return row ? { email: row.email, suppressed: !!row.suppressed } : null;
 }
 
 // Everyone who agreed to marketing e-mails: newsletter-bar sign-ups plus course
-// bookings with the marketing checkbox ticked, as one list.
+// bookings with the marketing checkbox ticked, as one list — minus anyone who
+// has since unsubscribed.
 const ENTRIES = `
   SELECT 'widget' AS source, email, created_at,
          NULL AS name, NULL AS first_name, NULL AS last_name,
          NULL AS course_id, NULL AS course_name, NULL AS course_type,
          NULL AS course_starts_at, NULL AS course_ends_at, NULL AS course_location
-    FROM newsletter_subscribers
+    FROM newsletter_subscribers n
+   WHERE NOT EXISTS (SELECT 1 FROM newsletter_suppressions s WHERE s.email = n.email)
   UNION ALL
   SELECT 'course', b.email, b.created_at,
          b.first_name || ' ' || b.last_name, b.first_name, b.last_name,
          c.id, c.name, c.type,
          c.starts_at, c.ends_at, c.location
     FROM course_bookings b JOIN courses c ON c.id = b.course_id
-   WHERE b.marketing_consent = 1`;
+   WHERE b.marketing_consent = 1
+     AND NOT EXISTS (SELECT 1 FROM newsletter_suppressions s WHERE s.email = b.email)`;
 
 // Every filter is always bound; an empty value switches it off.
 const WHERE = `
@@ -152,13 +199,15 @@ export async function adminListNewsletterCourses(): Promise<NewsletterCourse[]> 
 }
 
 /**
- * Takes an address off the list everywhere: drops its newsletter sign-up and
+ * Takes an address off the list everywhere: drops its newsletter sign-up,
  * withdraws the marketing consent on all its course bookings (the bookings
- * themselves stay).
+ * themselves stay) and records the suppression, so an import can't bring it
+ * back.
  */
 export async function adminRemoveFromNewsletter(email: string): Promise<void> {
   const DB = await db();
   await DB.batch([
+    DB.prepare("INSERT OR IGNORE INTO newsletter_suppressions (email, reason) VALUES (?, 'admin')").bind(email),
     DB.prepare("DELETE FROM newsletter_subscribers WHERE email = ? COLLATE NOCASE").bind(email),
     DB.prepare("UPDATE course_bookings SET marketing_consent = 0 WHERE lower(email) = lower(?)").bind(email),
   ]);
