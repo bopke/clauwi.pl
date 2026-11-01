@@ -45,3 +45,18 @@ export type NewsletterCourse = {
   /** Bookings on it with marketing consent. */
   consents: number;
 };
+
+/** The list filters without the page — what a mailing is addressed to. */
+export type NewsletterFilters = Omit<NewsletterQuery, "page">;
+
+/**
+ * One person a mailing goes to. Someone on the list several times (the card
+ * plus courses, or several courses) is one recipient; their course is the
+ * most recent matching one — that's what the template's course fields show.
+ */
+export type NewsletterRecipient = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  course: { name: string; type: string; location: string; startsAt: string; endsAt: string } | null;
+};
