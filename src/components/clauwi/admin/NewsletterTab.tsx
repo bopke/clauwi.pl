@@ -9,9 +9,11 @@
 // also hold an imported archive, far too long to load whole.
 
 import { useEffect, useMemo, useState } from "react";
-import { NEWSLETTER_PAGE_SIZE, type NewsletterCourse, type NewsletterPage, type NewsletterQuery } from "@/lib/clauwi/newsletter";
+import { useRouter } from "next/navigation";
+import { NEWSLETTER_PAGE_SIZE, type NewsletterCourse, type NewsletterFilters, type NewsletterPage, type NewsletterQuery } from "@/lib/clauwi/newsletter";
 import { getNewsletterAction, getNewsletterCoursesAction, removeFromNewsletterAction } from "@/app/admin/actions";
 import { CoursePickerModal } from "./CoursePickerModal";
+import { NEWSLETTER_FILTERS_KEY } from "./NewsletterComposer";
 
 const coll = new Intl.Collator("pl");
 
@@ -68,6 +70,16 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
   // Bumped to refetch the current page (after a deletion).
   const [reload, setReload] = useState(0);
   const [delTarget, setDelTarget] = useState<string | null>(null);
+  const router = useRouter();
+
+  // Opens the composer for everyone matching the filters as they stand.
+  function compose() {
+    const filters: NewsletterFilters = { q: debouncedQ, source, courseType, courseIds };
+    try {
+      sessionStorage.setItem(NEWSLETTER_FILTERS_KEY, JSON.stringify(filters));
+    } catch {}
+    router.push("/admin/newsletter/wiadomosc");
+  }
 
   useEffect(() => {
     if (q === debouncedQ) return;
@@ -170,6 +182,15 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
           {total} {plural(total, "wpis", "wpisy", "wpisów")}
           {data && data.uniqueEmails !== total && ` · ${data.uniqueEmails} ${plural(data.uniqueEmails, "unikalny adres", "unikalne adresy", "unikalnych adresów")}`}
         </span>
+        <button
+          type="button"
+          className="adm-btn adm-btn--solid"
+          disabled={!data || data.uniqueEmails === 0 || q !== debouncedQ}
+          onClick={compose}
+          title="Napisz wiadomość do wszystkich osób pasujących do filtrów"
+        >
+          Wyślij do {data?.uniqueEmails ?? 0} {plural(data?.uniqueEmails ?? 0, "osoby", "osób", "osób")}
+        </button>
       </div>
 
       <div className="adm-tablewrap">

@@ -383,8 +383,10 @@ function useToast(): [(m: string) => void, React.ReactNode] {
 }
 
 // ====== The app shell, once signed in ======
-export function AdminApp({ user }: { user: AdminUser }) {
-  const [tab, setTab] = useState<"doradcy" | "kursy" | "newsletter" | "dostep">("doradcy");
+type Tab = "doradcy" | "kursy" | "newsletter" | "dostep";
+
+export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; initialTab?: Tab }) {
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [menu, setMenu] = useState(false);
   const [toast, toastNode] = useToast();
   // Bookings no one has looked at yet (for this admin), shown on the "Kursy"

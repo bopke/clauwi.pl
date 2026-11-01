@@ -294,3 +294,38 @@
 .adm-table tbody tr.adm-row--new:hover td { background: #f7e8e2; }
 .adm-tabs__count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-left: 7px; padding: 0 6px; border-radius: 999px; background: var(--green-d); color: #fff; font-size: 12px; line-height: 1; vertical-align: 1px; }
 .adm-tabs button.is-active .adm-tabs__count { background: #fff; color: var(--green-d); }
+
+/* ----- Newsletter composer ----- */
+.adm-compose__to { display: flex; flex-direction: column; margin-right: auto; min-width: 0; }
+.adm-compose__to b { color: var(--green-d); font-size: 17px; }
+.adm-compose__to span { color: var(--ink-soft); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-top .adm-btn:disabled { opacity: .5; cursor: default; }
+.adm-compose { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 24px; padding: 24px 26px; max-width: 1500px; margin: 0 auto; align-items: start; }
+.adm-compose__edit { display: flex; flex-direction: column; gap: 16px; }
+.adm-compose__edit .adm-f input, .adm-compose__edit .adm-f textarea { background: #fff; }
+.adm-compose__body textarea { min-height: 340px; padding: 13px; border-radius: 11px; border: 1.5px solid var(--line); font: 15px/1.6 "Nunito", sans-serif; resize: vertical; outline: none; }
+.adm-compose__body textarea:focus { border-color: var(--sage); }
+.adm-compose__warn { margin: 0; padding: 10px 14px; border-radius: 11px; background: #fdf4ef; color: var(--danger); font-size: 14px; }
+.adm-compose__fields { background: #fff; border: 1.5px solid var(--line); border-radius: 14px; padding: 4px 16px; }
+.adm-compose__fields summary { cursor: pointer; padding: 10px 0; font-family: "Quicksand", sans-serif; font-weight: 700; color: var(--green-d); }
+.adm-compose__fields p { margin: 0 0 10px; font-size: 13px; color: var(--ink-soft); }
+.adm-compose__fields h3 { margin: 12px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-soft); }
+.adm-compose__fields ul { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.adm-compose__fields li button { width: 100%; display: grid; grid-template-columns: 170px 1fr auto; gap: 12px; align-items: center; padding: 7px 10px; border: none; border-radius: 9px; background: none; text-align: left; cursor: pointer; font-size: 14px; color: var(--ink); }
+.adm-compose__fields li button:hover { background: #fbf1ed; }
+.adm-compose__fields code { font-size: 13px; color: var(--green-d); }
+.adm-compose__fields em { font-style: normal; color: var(--ink-soft); font-size: 13px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-compose__preview { position: sticky; top: 90px; background: #fff; border: 1.5px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; height: calc(100vh - 120px); }
+.adm-compose__pvhead { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: #faf8f1; }
+.adm-compose__who { flex: 1; min-width: 0; font-size: 14px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-compose__who b { color: var(--ink); }
+.adm-compose__nav { display: flex; align-items: center; gap: 4px; font-family: "Quicksand", sans-serif; font-weight: 600; font-size: 14px; color: var(--ink-soft); white-space: nowrap; }
+.adm-compose__nav .adm-iconbtn { margin: 0 4px; font-size: 18px; }
+.adm-compose__nav .adm-iconbtn:disabled { opacity: .4; cursor: default; }
+.adm-compose__subject { padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.adm-compose__subject span { color: var(--ink-soft); }
+.adm-compose__frame { flex: 1; width: 100%; border: 0; background: #faf7f5; }
+@media (max-width: 960px) {
+  .adm-compose { grid-template-columns: 1fr; }
+  .adm-compose__preview { position: static; height: 80vh; }
+}

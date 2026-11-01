@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 // Auth + D1 are request-scoped — never prerender this route at build time.
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ error?: string; tab?: string }> }) {
   const [session, sp] = await Promise.all([auth(), searchParams]);
 
   if (!session?.user?.email) {
@@ -19,5 +19,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   }
 
   const u = session.user;
-  return <AdminApp user={{ email: u.email!, name: u.name ?? null, image: u.image ?? null }} />;
+  // ?tab=newsletter — the newsletter composer links back to its tab.
+  const initialTab = sp.tab === "newsletter" || sp.tab === "kursy" || sp.tab === "dostep" ? sp.tab : undefined;
+  return <AdminApp user={{ email: u.email!, name: u.name ?? null, image: u.image ?? null }} initialTab={initialTab} />;
 }
