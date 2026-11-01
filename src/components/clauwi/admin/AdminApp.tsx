@@ -14,6 +14,7 @@ import {
   getAllowlistAction, removeAllowAction, signOutAction, updateAdvisorAction, getUnseenBookingCountsAction,
 } from "@/app/admin/actions";
 import { CoursesTab } from "./CoursesTab";
+import { NewsletterTab } from "./NewsletterTab";
 import "./admin.css";
 
 const coll = new Intl.Collator("pl");
@@ -383,7 +384,7 @@ function useToast(): [(m: string) => void, React.ReactNode] {
 
 // ====== The app shell, once signed in ======
 export function AdminApp({ user }: { user: AdminUser }) {
-  const [tab, setTab] = useState<"doradcy" | "kursy" | "dostep">("doradcy");
+  const [tab, setTab] = useState<"doradcy" | "kursy" | "newsletter" | "dostep">("doradcy");
   const [menu, setMenu] = useState(false);
   const [toast, toastNode] = useToast();
   // Bookings no one has looked at yet (for this admin), shown on the "Kursy"
@@ -416,6 +417,7 @@ export function AdminApp({ user }: { user: AdminUser }) {
             Kursy
             {unseenTotal > 0 && <span className="adm-tabs__count" title="Nowe zgłoszenia od Twojej ostatniej wizyty">{unseenTotal}</span>}
           </button>
+          <button className={tab === "newsletter" ? "is-active" : ""} onClick={() => setTab("newsletter")}>Newsletter</button>
           <button className={tab === "dostep" ? "is-active" : ""} onClick={() => setTab("dostep")}>Dostęp</button>
         </nav>
         <div className="adm-user" onClick={() => setMenu((m) => !m)}>
@@ -442,19 +444,23 @@ export function AdminApp({ user }: { user: AdminUser }) {
 
       <main className="adm-main">
         <div className="adm-head">
-          <h1>{tab === "doradcy" ? "Doradcy" : tab === "kursy" ? "Kursy" : "Zarządzanie dostępem"}</h1>
+          <h1>{tab === "doradcy" ? "Doradcy" : tab === "kursy" ? "Kursy" : tab === "newsletter" ? "Newsletter" : "Zarządzanie dostępem"}</h1>
           <p>
             {tab === "doradcy"
               ? "Dodawaj, edytuj i usuwaj doradców widocznych na stronie."
               : tab === "kursy"
                 ? "Zarządzaj kalendarzem kursów i przeglądaj zgłoszenia uczestników."
-                : "Decyduj, które konta Google mają dostęp do panelu."}
+                : tab === "newsletter"
+                  ? "Adresy osób, które zgodziły się na e-maile z ofertami — z widżetu newslettera i z zapisów na kursy."
+                  : "Decyduj, które konta Google mają dostęp do panelu."}
           </p>
         </div>
         {tab === "doradcy" ? (
           <AdvisorsTab toast={toast} />
         ) : tab === "kursy" ? (
           <CoursesTab toast={toast} onUnseenChange={onUnseenChange} />
+        ) : tab === "newsletter" ? (
+          <NewsletterTab />
         ) : (
           <AccessTab currentEmail={user.email} toast={toast} />
         )}
