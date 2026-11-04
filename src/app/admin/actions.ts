@@ -23,6 +23,7 @@ import {
 } from "@/lib/clauwi/mailings-repo";
 import type { Mailing, MailingRecipientRow, RecipientStatus } from "@/lib/clauwi/mailings";
 import { CONTACT, SITE } from "@/lib/clauwi/site";
+import { deleteTemplate, listTemplates, saveTemplate, type MessageTemplate } from "@/lib/clauwi/message-templates-repo";
 import type { NewsletterCourse, NewsletterFilters, NewsletterPage, NewsletterQuery, NewsletterRecipient } from "@/lib/clauwi/newsletter";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -334,6 +335,26 @@ export async function getSendingSettingsAction(): Promise<{ dailyLimit: number; 
 export async function setDailyLimitAction(n: number): Promise<void> {
   await requireAdmin();
   await setDailyLimit(n);
+}
+
+// ----- Saved message templates -----
+
+export async function getTemplatesAction(): Promise<MessageTemplate[]> {
+  await requireAdmin();
+  return listTemplates();
+}
+
+export async function saveTemplateAction(name: string, draft: NewsletterDraft): Promise<MessageTemplate[]> {
+  const me = await requireAdmin();
+  if (!name.trim()) throw new Error("empty name");
+  await saveTemplate(name, draft, me);
+  return listTemplates();
+}
+
+export async function deleteTemplateAction(id: string): Promise<MessageTemplate[]> {
+  await requireAdmin();
+  await deleteTemplate(id);
+  return listTemplates();
 }
 
 /** The signed-in administrator's address — the default for test sends. */

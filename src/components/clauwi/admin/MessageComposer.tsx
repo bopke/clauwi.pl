@@ -19,9 +19,10 @@ import type { NewsletterFilters, NewsletterRecipient } from "@/lib/clauwi/newsle
 import { buildMessageEmail, PLACEHOLDERS, unknownPlaceholders, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
 import type { Course } from "@/lib/clauwi/courses";
 import {
-  createCourseMessageAction, createNewsletterMailingAction, getCourseMessageAction, getMeAction, getNewsletterRecipientAction,
-  getSendingSettingsAction, sendTestAction,
+  createCourseMessageAction, createNewsletterMailingAction, deleteTemplateAction, getCourseMessageAction, getMeAction,
+  getNewsletterRecipientAction, getSendingSettingsAction, getTemplatesAction, saveTemplateAction, sendTestAction,
 } from "@/app/admin/actions";
+import type { MessageTemplate } from "@/lib/clauwi/message-templates-repo";
 import "./admin.css";
 
 export type ComposerKind = "newsletter" | "course";
@@ -123,6 +124,96 @@ function inAnHour(): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
 }
 
+/**
+ * Saved templates: load one into the composer, save the current message
+ * under a name (an existing name is overwritten), delete. Loading and
+ * deleting ask once more inline, so a stray click loses nothing.
+ */
+function Templates({ draft, onLoad, onClose }: { draft: NewsletterDraft; onLoad: (d: NewsletterDraft) => void; onClose: () => void }) {
+  const [list, setList] = useState<MessageTemplate[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [name, setName] = useState("");
+  const [armed, setArmed] = useState<{ id: string; action: "load" | "delete" } | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    getTemplatesAction().then(setList, () => setFailed(true));
+  }, []);
+  const existing = list?.find((t) => t.name.toLowerCase() === name.trim().toLowerCase());
+  const draftEmpty = !draft.subject.trim() && !draft.heading.trim() && draft.body.trim() === EMPTY_DRAFT.body.trim();
+
+  async function run(work: () => Promise<MessageTemplate[]>) {
+    setBusy(true);
+    try {
+      setList(await work());
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+      setArmed(null);
+    }
+  }
+
+  function load(t: MessageTemplate) {
+    if (!draftEmpty && !(armed?.id === t.id && armed.action === "load")) return setArmed({ id: t.id, action: "load" });
+    onLoad({ subject: t.subject, heading: t.heading, body: t.body });
+    onClose();
+  }
+
+  return (
+    <div className="adm-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="adm-sheet adm-templates">
+        <div className="adm-sheet__head">
+          <h2>Szablony wiadomości</h2>
+          <button type="button" className="adm-x" onClick={onClose} aria-label="Zamknij">×</button>
+        </div>
+        <div className="adm-sheet__body">
+          {failed && <p className="adm-compose__warn">Nie udało się wczytać lub zapisać szablonów.</p>}
+          {!list ? (
+            <p className="adm-empty">Wczytywanie…</p>
+          ) : list.length === 0 ? (
+            <p className="adm-empty">Nie ma jeszcze zapisanych szablonów. Napisz wiadomość i zapisz ją poniżej, żeby użyć jej ponownie.</p>
+          ) : (
+            <ul className="adm-templates__list">
+              {list.map((t) => (
+                <li key={t.id}>
+                  <div>
+                    <b>{t.name}</b>
+                    <span>{t.subject || <i>(bez tematu)</i>}</span>
+                  </div>
+                  <button type="button" className="adm-btn adm-btn--solid" disabled={busy} onClick={() => load(t)}>
+                    {armed?.id === t.id && armed.action === "load" ? "Zastąpić bieżącą treść?" : "Wczytaj"}
+                  </button>
+                  <button
+                    type="button"
+                    className="adm-btn adm-btn--ghost adm-btn--dangertext"
+                    disabled={busy}
+                    onClick={() => (armed?.id === t.id && armed.action === "delete" ? run(() => deleteTemplateAction(t.id)) : setArmed({ id: t.id, action: "delete" }))}
+                  >
+                    {armed?.id === t.id && armed.action === "delete" ? "Na pewno usunąć?" : "Usuń"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <form
+          className="adm-sheet__foot adm-templates__save"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (name.trim()) run(() => saveTemplateAction(name, draft)).then(() => setName(""));
+          }}
+        >
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nazwa szablonu, np. Przypomnienie przed kursem" aria-label="Nazwa szablonu" />
+          <button type="submit" className="adm-btn adm-btn--solid" disabled={busy || !name.trim() || draftEmpty}>
+            {existing ? "Nadpisz szablon" : "Zapisz bieżącą jako szablon"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 /** The test-send dialog. */
 function TestSend({ onSend, onClose }: { onSend: (to: string) => Promise<void>; onClose: () => void }) {
   const [to, setTo] = useState("");
@@ -182,6 +273,7 @@ function Composer({ kind }: { kind: ComposerKind }) {
   const [failed, setFailed] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [templates, setTemplates] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createFailed, setCreateFailed] = useState(false);
   // Newsletter: "" = send now, otherwise a datetime-local value.
@@ -409,8 +501,24 @@ function Composer({ kind }: { kind: ComposerKind }) {
         </div>
       )}
 
+      {templates && (
+        <Templates
+          draft={draft}
+          onLoad={(d) => {
+            setDraft(d);
+            try {
+              localStorage.setItem(draftKey, JSON.stringify(d));
+            } catch {}
+          }}
+          onClose={() => setTemplates(false)}
+        />
+      )}
+
       <main className="adm-compose">
         <section className="adm-compose__edit">
+          <div className="adm-compose__tools">
+            <button type="button" className="adm-btn adm-btn--ghost" onClick={() => setTemplates(true)}>Szablony…</button>
+          </div>
           <label className="adm-f">
             <span>Temat</span>
             <input ref={subjectRef} value={draft.subject} onFocus={() => (lastField.current = "subject")} onChange={(e) => update("subject", e.target.value)} placeholder="np. Nowe terminy kursów w {{kurs.miasto|Twojej okolicy}}" />
