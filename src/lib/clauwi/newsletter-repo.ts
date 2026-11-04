@@ -4,7 +4,7 @@ import "server-only";
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { ConsentEntry, ConsentSource } from "./consent";
-import { NEWSLETTER_PAGE_SIZE, type NewsletterCourse, type NewsletterFilters, type NewsletterPage, type NewsletterQuery, type NewsletterRecipient } from "./newsletter";
+import { NEWSLETTER_PAGE_SIZE, type ImportRow, type NewsletterImport, type NewsletterCourse, type NewsletterFilters, type NewsletterPage, type NewsletterQuery, type NewsletterRecipient } from "./newsletter";
 
 async function db(): Promise<D1Database> {
   const { env } = await getCloudflareContext({ async: true });
@@ -121,21 +121,24 @@ export async function findNewsletterToken(token: string): Promise<{ email: strin
   return row ? { email: row.email, suppressed: !!row.suppressed } : null;
 }
 
-// Everyone who agreed to marketing e-mails: newsletter-bar sign-ups plus course
-// bookings with the marketing checkbox ticked, as one list — minus anyone who
-// has since unsubscribed.
+// Everyone who agreed to marketing e-mails: newsletter-bar sign-ups, imported
+// addresses and course bookings with the marketing checkbox ticked, as one
+// list — minus anyone who has since unsubscribed.
 const ENTRIES = `
-  SELECT 'widget' AS source, email, created_at,
-         NULL AS name, NULL AS first_name, NULL AS last_name,
+  SELECT n.source AS source, n.email, n.created_at,
+         nullif(trim(n.first_name || ' ' || n.last_name), '') AS name,
+         nullif(n.first_name, '') AS first_name, nullif(n.last_name, '') AS last_name,
          NULL AS course_id, NULL AS course_name, NULL AS course_type,
-         NULL AS course_starts_at, NULL AS course_ends_at, NULL AS course_location
-    FROM newsletter_subscribers n
+         NULL AS course_starts_at, NULL AS course_ends_at, NULL AS course_location,
+         i.label AS import_label
+    FROM newsletter_subscribers n LEFT JOIN newsletter_imports i ON i.id = n.import_id
    WHERE NOT EXISTS (SELECT 1 FROM newsletter_suppressions s WHERE s.email = n.email)
   UNION ALL
   SELECT 'course', b.email, b.created_at,
          b.first_name || ' ' || b.last_name, b.first_name, b.last_name,
          c.id, c.name, c.type,
-         c.starts_at, c.ends_at, c.location
+         c.starts_at, c.ends_at, c.location,
+         NULL
     FROM course_bookings b JOIN courses c ON c.id = b.course_id
    WHERE b.marketing_consent = 1
      AND NOT EXISTS (SELECT 1 FROM newsletter_suppressions s WHERE s.email = b.email)`;
@@ -174,7 +177,9 @@ export async function adminListNewsletter(query: NewsletterQuery): Promise<Newsl
     entries: (rows.results ?? []).map((r) => ({
       email: str(r.email),
       createdAt: str(r.created_at),
-      source: r.source === "course" ? "course" : "widget",
+      source: r.source === "course" || r.source === "import" || r.source === "admin" ? r.source : "widget",
+      ...(r.name && { name: str(r.name) }),
+      ...(r.import_label && { importLabel: str(r.import_label) }),
       ...(r.source === "course" && {
         name: str(r.name),
         courseId: str(r.course_id),
@@ -301,5 +306,91 @@ export async function adminRemoveFromNewsletter(email: string, admin: string): P
     consentStmt(DB, { email, action: "withdrawn", source: "admin", ref: admin }),
     DB.prepare("DELETE FROM newsletter_subscribers WHERE email = ? COLLATE NOCASE").bind(email),
     DB.prepare("UPDATE course_bookings SET marketing_consent = 0 WHERE lower(email) = lower(?)").bind(email),
+  ]);
+}
+
+// ----- Importing a list (migrations/0020) -----
+
+export async function createNewsletterImport(label: string, fileName: string, consentBasis: string, by: string): Promise<string> {
+  const id = "imp" + crypto.randomUUID();
+  await (await db()).prepare("INSERT INTO newsletter_imports (id, label, file_name, consent_basis, created_by) VALUES (?, ?, ?, ?, ?)")
+    .bind(id, label, fileName, consentBasis, by).run();
+  return id;
+}
+
+/**
+ * Adds one chunk of an import. Addresses already on the list are left as they
+ * are (their own source and date stay), unsubscribed ones are skipped — an
+ * import must never bring back someone who opted out. Each new address gets
+ * a consent-log entry carrying the import's consent basis.
+ */
+export async function importNewsletterChunk(
+  importId: string,
+  rows: ImportRow[],
+): Promise<{ added: number; existing: number; suppressed: number }> {
+  const DB = await db();
+  const imp = await DB.prepare("SELECT label, consent_basis FROM newsletter_imports WHERE id = ? AND undone_at IS NULL")
+    .bind(importId).first<{ label: string; consent_basis: string }>();
+  if (!imp) throw new Error("import not found");
+  const json = JSON.stringify(rows);
+  const email = "json_extract(j.value, '$.email')";
+  const notSuppressed = `NOT EXISTS (SELECT 1 FROM newsletter_suppressions s WHERE s.email = ${email})`;
+  const [sup, , ins] = await DB.batch<{ n: number }>([
+    DB.prepare(`SELECT count(*) AS n FROM json_each(?1) j WHERE NOT ${notSuppressed}`).bind(json),
+    // Before the insert below, so "not on the list yet" still means something.
+    DB.prepare(
+      `INSERT INTO consent_log (email, action, source, ref, wording, note, created_at)
+       SELECT ${email}, 'granted', 'import', ?2, ?3, ?4,
+              coalesce(nullif(json_extract(j.value, '$.consentAt'), ''), datetime('now'))
+         FROM json_each(?1) j
+        WHERE ${notSuppressed} AND NOT EXISTS (SELECT 1 FROM newsletter_subscribers n WHERE n.email = ${email})`,
+    ).bind(json, importId, imp.consent_basis, `${imp.label} — zaimportowano ${new Date().toISOString().slice(0, 10)}`),
+    DB.prepare(
+      `INSERT OR IGNORE INTO newsletter_subscribers (email, created_at, source, import_id, first_name, last_name)
+       SELECT ${email}, coalesce(nullif(json_extract(j.value, '$.consentAt'), ''), datetime('now')), 'import', ?2,
+              coalesce(json_extract(j.value, '$.firstName'), ''), coalesce(json_extract(j.value, '$.lastName'), '')
+         FROM json_each(?1) j
+        WHERE ${notSuppressed}`,
+    ).bind(json, importId),
+  ]);
+  const suppressed = Number(sup.results?.[0]?.n ?? 0);
+  const added = ins.meta.changes;
+  const existing = rows.length - suppressed - added;
+  await DB.prepare("UPDATE newsletter_imports SET added = added + ?, existing = existing + ?, suppressed = suppressed + ? WHERE id = ?")
+    .bind(added, existing, suppressed, importId).run();
+  return { added, existing, suppressed };
+}
+
+export async function listNewsletterImports(): Promise<NewsletterImport[]> {
+  const { results } = await (await db()).prepare("SELECT * FROM newsletter_imports ORDER BY created_at DESC").all<Record<string, string | number | null>>();
+  const str = (v: string | number | null | undefined) => (v == null ? "" : String(v));
+  return (results ?? []).map((r) => ({
+    id: str(r.id),
+    label: str(r.label),
+    fileName: str(r.file_name),
+    consentBasis: str(r.consent_basis),
+    added: Number(r.added ?? 0),
+    existing: Number(r.existing ?? 0),
+    suppressed: Number(r.suppressed ?? 0),
+    createdBy: str(r.created_by),
+    createdAt: str(r.created_at),
+    undoneAt: str(r.undone_at),
+  }));
+}
+
+/**
+ * Takes an import's addresses off the list again (a wrong file, a mistake).
+ * Not an unsubscribe — they aren't suppressed, a later import or sign-up
+ * can add them.
+ */
+export async function undoNewsletterImport(id: string, admin: string): Promise<void> {
+  const DB = await db();
+  await DB.batch([
+    DB.prepare(
+      `INSERT INTO consent_log (email, action, source, ref, note)
+       SELECT email, 'withdrawn', 'admin', ?2, 'cofnięto import' FROM newsletter_subscribers WHERE import_id = ?1`,
+    ).bind(id, admin),
+    DB.prepare("DELETE FROM newsletter_subscribers WHERE import_id = ?").bind(id),
+    DB.prepare("UPDATE newsletter_imports SET undone_at = datetime('now') WHERE id = ?").bind(id),
   ]);
 }

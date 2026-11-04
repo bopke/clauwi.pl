@@ -13,7 +13,10 @@ import { emailBaseUrl, sendBookingStatusEmail, sendBookingUpdatedEmail, sendBook
 import { BOOKING_FIELD_LABELS } from "@/lib/clauwi/courses";
 import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus } from "@/lib/clauwi/courses";
 import type { BookingChange } from "@/lib/clauwi/email-templates/course-booking-updated";
-import { adminListNewsletter, adminListNewsletterCourses, adminNewsletterRecipient, adminRemoveFromNewsletter, consentHistory } from "@/lib/clauwi/newsletter-repo";
+import {
+  adminListNewsletter, adminListNewsletterCourses, adminNewsletterRecipient, adminRemoveFromNewsletter, consentHistory,
+  createNewsletterImport, importNewsletterChunk, listNewsletterImports, undoNewsletterImport,
+} from "@/lib/clauwi/newsletter-repo";
 import type { ConsentEntry } from "@/lib/clauwi/consent";
 import { courseMessageRecipients, createCourseMessage } from "@/lib/clauwi/course-messages";
 import { buildMessageEmail, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
@@ -24,7 +27,7 @@ import {
 import type { Mailing, MailingRecipientRow, RecipientStatus } from "@/lib/clauwi/mailings";
 import { CONTACT, SITE } from "@/lib/clauwi/site";
 import { deleteTemplate, listTemplates, saveTemplate, type MessageTemplate } from "@/lib/clauwi/message-templates-repo";
-import type { NewsletterCourse, NewsletterFilters, NewsletterPage, NewsletterQuery, NewsletterRecipient } from "@/lib/clauwi/newsletter";
+import { IMPORT_CHUNK, type ImportRow, type NewsletterCourse, type NewsletterFilters, type NewsletterImport, type NewsletterPage, type NewsletterQuery, type NewsletterRecipient } from "@/lib/clauwi/newsletter";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -246,6 +249,44 @@ export async function getNewsletterCoursesAction(): Promise<NewsletterCourse[]> 
 export async function removeFromNewsletterAction(email: string): Promise<void> {
   const me = await requireAdmin();
   await adminRemoveFromNewsletter(email, me);
+}
+
+// ----- Importing a list -----
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+
+export async function createImportAction(label: string, fileName: string, consentBasis: string): Promise<string> {
+  const me = await requireAdmin();
+  if (!label.trim() || !consentBasis.trim()) throw new Error("label and consent basis required");
+  return createNewsletterImport(label.trim().slice(0, 200), fileName.slice(0, 200), consentBasis.trim().slice(0, 2000), me);
+}
+
+export async function importChunkAction(importId: string, rows: ImportRow[]): Promise<{ added: number; existing: number; suppressed: number }> {
+  await requireAdmin();
+  if (rows.length > IMPORT_CHUNK) throw new Error("chunk too large");
+  // The file was parsed in the browser — check every row again here.
+  const clean = rows
+    .map((r) => ({
+      email: String(r.email ?? "").trim().slice(0, 254),
+      firstName: String(r.firstName ?? "").trim().slice(0, 100),
+      lastName: String(r.lastName ?? "").trim().slice(0, 100),
+      consentAt: DATE_RE.test(String(r.consentAt ?? "")) ? String(r.consentAt) : "",
+    }))
+    .filter((r) => EMAIL_RE.test(r.email));
+  const seen = new Set<string>();
+  const unique = clean.filter((r) => !seen.has(r.email.toLowerCase()) && !!seen.add(r.email.toLowerCase()));
+  return importNewsletterChunk(importId, unique);
+}
+
+export async function getImportsAction(): Promise<NewsletterImport[]> {
+  await requireAdmin();
+  return listNewsletterImports();
+}
+
+export async function undoImportAction(id: string): Promise<NewsletterImport[]> {
+  const me = await requireAdmin();
+  await undoNewsletterImport(id, me);
+  return listNewsletterImports();
 }
 
 export async function getConsentHistoryAction(email: string): Promise<ConsentEntry[]> {

@@ -415,7 +415,7 @@ function Composer({ kind }: { kind: ComposerKind }) {
   const summary =
     target.kind === "newsletter"
       ? [
-          target.filters.source === "widget" ? "widżet newslettera" : target.filters.source === "course" ? "zapisy na kursy" : null,
+          target.filters.source === "widget" ? "widżet newslettera" : target.filters.source === "import" ? "importy" : target.filters.source === "course" ? "zapisy na kursy" : null,
           target.filters.courseType || null,
           target.filters.courseIds.length ? `${target.filters.courseIds.length} ${plural(target.filters.courseIds.length, "wybrany kurs", "wybrane kursy", "wybranych kursów")}` : null,
           target.filters.q ? `„${target.filters.q}”` : null,

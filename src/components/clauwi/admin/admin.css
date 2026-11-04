@@ -401,3 +401,12 @@ button.adm-chip.is-on { border-color: currentColor; }
 .adm-templates__list .adm-btn { padding: 8px 14px; white-space: nowrap; }
 .adm-templates__save { gap: 10px; }
 .adm-templates__save input { flex: 1; min-width: 0; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 11px; font: inherit; }
+
+/* ----- Import ----- */
+.adm-sheet.adm-import { max-width: 820px; max-height: 92vh; }
+.adm-import .adm-sheet__body { overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.adm-import .adm-grid2 .adm-f select { min-width: 0; width: 100%; }
+.adm-import textarea { padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 11px; font: inherit; resize: vertical; }
+.adm-import__stats { padding: 10px 14px; border-radius: 11px; background: #faf8f1; font-size: 14px; }
+.adm-import__h { font-size: 14px; color: var(--ink-soft); margin-top: 8px !important; }
+.adm-import .adm-sheet__body > * { flex-shrink: 0; }

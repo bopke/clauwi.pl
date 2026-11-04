@@ -14,6 +14,7 @@ import { NEWSLETTER_PAGE_SIZE, type NewsletterCourse, type NewsletterFilters, ty
 import { getConsentHistoryAction, getNewsletterAction, getNewsletterCoursesAction, removeFromNewsletterAction } from "@/app/admin/actions";
 import { CONSENT_SOURCE_LABELS, type ConsentEntry } from "@/lib/clauwi/consent";
 import { CoursePickerModal } from "./CoursePickerModal";
+import { ImportModal } from "./ImportModal";
 import { NEWSLETTER_FILTERS_KEY } from "./MessageComposer";
 
 const coll = new Intl.Collator("pl");
@@ -115,6 +116,7 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
   const [reload, setReload] = useState(0);
   const [delTarget, setDelTarget] = useState<string | null>(null);
   const [historyOf, setHistoryOf] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const router = useRouter();
 
   // Opens the composer for everyone matching the filters as they stand.
@@ -193,18 +195,19 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
           onChange={(e) => {
             const v = e.target.value as typeof source;
             setSource(v);
-            if (v === "widget") { setCourseType(""); setCourseIds([]); }
+            if (v === "widget" || v === "import") { setCourseType(""); setCourseIds([]); }
             setPage(1);
           }}
         >
           <option value="">Wszystkie źródła</option>
           <option value="widget">Widżet newslettera</option>
+          <option value="import">Importy</option>
           <option value="course">Zapisy na kursy</option>
         </select>
         <select
           className="adm-select"
           value={courseType}
-          disabled={source === "widget"}
+          disabled={source === "widget" || source === "import"}
           onChange={(e) => {
             setCourseType(e.target.value);
             setCourseIds([]);
@@ -216,7 +219,7 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
           {types.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
         <span className={"adm-pickbtn" + (courseIds.length ? " is-on" : "")}>
-          <button type="button" className="adm-select" disabled={source === "widget"} onClick={() => setPicking(true)} title="Wybierz kursy">
+          <button type="button" className="adm-select" disabled={source === "widget" || source === "import"} onClick={() => setPicking(true)} title="Wybierz kursy">
             {courseLabel}
           </button>
           {courseIds.length > 0 && (
@@ -227,6 +230,7 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
           {total} {plural(total, "wpis", "wpisy", "wpisów")}
           {data && data.uniqueEmails !== total && ` · ${data.uniqueEmails} ${plural(data.uniqueEmails, "unikalny adres", "unikalne adresy", "unikalnych adresów")}`}
         </span>
+        <button type="button" className="adm-btn adm-btn--ghost" onClick={() => setImporting(true)}>Importuj…</button>
         <button
           type="button"
           className="adm-btn adm-btn--solid"
@@ -253,6 +257,13 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
                 <td>
                   {e.source === "widget" ? (
                     <span className="adm-statusbadge adm-statusbadge--level">Widżet newslettera</span>
+                  ) : e.source === "import" ? (
+                    <>
+                      <span className="adm-statusbadge adm-statusbadge--inactive">Import</span>
+                      <div className="adm-td-addr">{e.importLabel}</div>
+                    </>
+                  ) : e.source === "admin" ? (
+                    <span className="adm-statusbadge adm-statusbadge--inactive">Przywrócone w panelu</span>
                   ) : (
                     <>
                       <div>{e.courseName}</div>
@@ -321,6 +332,8 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
           }}
         />
       )}
+
+      {importing && <ImportModal onClose={() => setImporting(false)} onImported={() => setReload((n) => n + 1)} />}
 
       {historyOf && <ConsentHistory email={historyOf} onClose={() => setHistoryOf(null)} />}
 
