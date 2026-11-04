@@ -141,6 +141,35 @@ function bodyToHtml(text: string, r: NewsletterRecipient): string {
   return markdown.parse(fillTemplate(text.replace(/\r\n/g, "\n"), r, escapeMarkdown), { async: false });
 }
 
+/** Analytics tags for links back to the site — which mailing brought a visit. */
+export type Utm = { source: string; campaign: string };
+
+/**
+ * Adds utm_source / utm_medium / utm_campaign to every link in the body that
+ * points at the site itself (other sites' links stay untouched, as do links
+ * that already carry their own tags).
+ */
+function tagLinks(html: string, utm: Utm, baseUrl: string): string {
+  const own = new Set(["clauwi.pl", "www.clauwi.pl", "staging.clauwi.pl"]);
+  try {
+    own.add(new URL(baseUrl).host);
+  } catch {}
+  return html.replace(/href="(https?:[^"]*)"/g, (whole, escaped: string) => {
+    const raw = escaped.replace(/&amp;/g, "&");
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      return whole;
+    }
+    if (!own.has(url.host) || [...url.searchParams.keys()].some((k) => k.startsWith("utm_"))) return whole;
+    url.searchParams.set("utm_source", utm.source);
+    url.searchParams.set("utm_medium", "email");
+    url.searchParams.set("utm_campaign", utm.campaign);
+    return `href="${escapeHtml(url.toString())}"`;
+  });
+}
+
 /** The recipient's unsubscribe page (see migrations/0016). */
 export function unsubscribeUrl(baseUrl: string, token: string): string {
   return `${baseUrl.replace(/\/$/, "")}/newsletter/wypisz/${token}`;
@@ -154,10 +183,11 @@ export function unsubscribeUrl(baseUrl: string, token: string): string {
 export function buildMessageEmail(
   draft: NewsletterDraft,
   r: NewsletterRecipient,
-  opts: { baseUrl: string; unsubscribeUrl?: string },
+  opts: { baseUrl: string; unsubscribeUrl?: string; utm?: Utm },
 ): RenderedEmail {
   const subject = fillTemplate(draft.subject, r);
   // No heading of its own → repeat the subject, the layout needs one.
   const heading = fillTemplate(draft.heading, r).trim() || subject;
-  return renderEmail({ subject, preheader: subject, heading, body: bodyToHtml(draft.body, r) }, opts);
+  const body = bodyToHtml(draft.body, r);
+  return renderEmail({ subject, preheader: subject, heading, body: opts.utm ? tagLinks(body, opts.utm, opts.baseUrl) : body }, opts);
 }

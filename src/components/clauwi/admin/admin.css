@@ -388,3 +388,5 @@ button.adm-chip.is-on { border-color: currentColor; }
 .adm-rowlink { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .adm-rowlink:hover { color: var(--green-d); text-decoration-color: currentColor; }
 .adm-td-warn { color: var(--danger); }
+.adm-mailing__campaign { margin-left: auto; cursor: help; }
+.adm-mailing__campaign code { font-size: 12px; color: var(--green-d); }

@@ -14,7 +14,7 @@ import {
   type Mailing, type MailingCounts, type MailingKind, type MailingRecipientRow, type MailingStatus, type RecipientStatus,
 } from "./mailings";
 import type { NewsletterFilters, NewsletterRecipient } from "./newsletter";
-import { buildMessageEmail, unsubscribeUrl, type NewsletterDraft } from "./newsletter-template";
+import { buildMessageEmail, unsubscribeUrl, type NewsletterDraft, type Utm } from "./newsletter-template";
 import { newsletterTokensFor, queueNewsletterRecipientsStmt } from "./newsletter-repo";
 import { sendEmail } from "./brevo";
 import { CONTACT, SITE } from "./site";
@@ -61,6 +61,11 @@ function rowToMailing(r: Row): Mailing {
 const COUNTS = `(SELECT json_group_object(status, n) FROM (
   SELECT status, count(*) AS n FROM mailing_recipients WHERE mailing_id = m.id GROUP BY status
 )) AS counts`;
+
+/** Links to the site carry the mailing's campaign — visible in Google Analytics. */
+function utmFor(m: Row): Utm {
+  return { source: m.kind === "newsletter" ? "newsletter" : "wiadomosc-kurs", campaign: str(m.campaign) };
+}
 
 // ----- Settings -----
 
@@ -198,7 +203,7 @@ export async function mailingPreview(id: string): Promise<{ html: string; subjec
   const { html, subject } = buildMessageEmail(
     { subject: str(m.subject), heading: str(m.heading), body: str(m.body) },
     JSON.parse(str(first.data)) as NewsletterRecipient,
-    { baseUrl, unsubscribeUrl: m.kind === "newsletter" ? unsubscribeUrl(baseUrl, "podglad") : undefined },
+    { baseUrl, unsubscribeUrl: m.kind === "newsletter" ? unsubscribeUrl(baseUrl, "podglad") : undefined, utm: utmFor(m) },
   );
   return { html, subject, email: str(first.email) };
 }
@@ -308,6 +313,7 @@ export async function processMailing(id: string, max = MAILING_CHUNK): Promise<P
         const { subject, html, text } = buildMessageEmail(draft, r, {
           baseUrl,
           unsubscribeUrl: newsletter && token ? unsubscribeUrl(baseUrl, token) : undefined,
+          utm: utmFor(m),
         });
         if (newsletter && !token) throw new Error("brak linku wypisu");
         await sendEmail({

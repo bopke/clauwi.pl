@@ -180,6 +180,9 @@ export function MailingView({ id }: { id: string }) {
                   : <>Rozpoczęta {formatUtc(mailing.sendAfter)}</>}
               {" · "}utworzona {formatUtc(mailing.createdAt)}{mailing.createdBy && <> przez {mailing.createdBy}</>}
             </span>
+            <span className="adm-mailing__campaign" title="Linki do strony w tej wiadomości mają ten znacznik — w Google Analytics (Pozyskanie → Kampanie) widać, ile wejść i zapisów przyniosła.">
+              Kampania w Analytics: <code>{mailing.campaign}</code>
+            </span>
           </div>
           <div className="adm-progress" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
             <div style={{ width: `${pct}%` }} />
