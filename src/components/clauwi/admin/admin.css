@@ -415,3 +415,21 @@ button.adm-chip.is-on { border-color: currentColor; }
 .adm-seg { display: inline-flex; gap: 4px; padding: 4px; margin: 0 0 16px; background: #fff; border: 1.5px solid var(--line); border-radius: 12px; }
 .adm-seg button { border: none; background: none; padding: 7px 16px; border-radius: 9px; font-family: "Quicksand", sans-serif; font-weight: 700; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
 .adm-seg button.is-on { background: var(--green); color: #fff; }
+
+/* ----- Automatic e-mails ----- */
+.adm-auto__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.adm-auto__card { display: flex; flex-direction: column; gap: 8px; padding: 18px 20px; background: #fff; border: 1.5px solid var(--line); border-radius: 16px; color: inherit; text-decoration: none; transition: border-color .15s; }
+.adm-auto__card:hover { border-color: var(--sage); }
+.adm-auto__card.is-on { border-left: 4px solid var(--green); }
+.adm-auto__card p { margin: 0; font-size: 14px; }
+.adm-auto__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--green-d); font-size: 16px; }
+.adm-auto__foot { display: flex; justify-content: space-between; gap: 10px; margin-top: auto !important; padding-top: 8px; color: var(--ink-soft); font-size: 13px !important; }
+.adm-auto__foot span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-auto__settings { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; background: #fff; border: 1.5px solid var(--line); border-radius: 14px; }
+.adm-auto__settings p { margin: 0; font-size: 14px; }
+.adm-auto__switch { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 15px; }
+.adm-auto__switch input { width: 20px; height: 20px; accent-color: var(--green); }
+.adm-auto__days input { max-width: 120px; }
+.adm-auto__saved { color: var(--green-d); font-weight: 700; font-size: 14px; }
+.adm-auto__sends td { padding: 6px 8px; font-size: 13px; }
+.adm-auto__foot span:last-child { white-space: nowrap; }

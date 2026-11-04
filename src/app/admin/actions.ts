@@ -27,6 +27,8 @@ import {
 } from "@/lib/clauwi/mailings-repo";
 import type { Mailing, MailingRecipientRow, RecipientStatus } from "@/lib/clauwi/mailings";
 import { CONTACT, SITE } from "@/lib/clauwi/site";
+import { getAutomation, listAutomations, listAutomationSends, saveAutomation } from "@/lib/clauwi/automations-repo";
+import { AUTOMATION_KEYS, type Automation, type AutomationKey, type AutomationOptions, type AutomationSend } from "@/lib/clauwi/automations";
 import { deleteTemplate, listTemplates, saveTemplate, type MessageTemplate } from "@/lib/clauwi/message-templates-repo";
 import { IMPORT_CHUNK, type ImportRow, type NewsletterCourse, type NewsletterFilters, type NewsletterImport, type NewsletterPage, type NewsletterQuery, type NewsletterRecipient } from "@/lib/clauwi/newsletter";
 
@@ -407,6 +409,32 @@ export async function deleteTemplateAction(id: string): Promise<MessageTemplate[
   await requireAdmin();
   await deleteTemplate(id);
   return listTemplates();
+}
+
+// ----- Automatic e-mails -----
+
+export async function getAutomationsAction(): Promise<Automation[]> {
+  await requireAdmin();
+  return listAutomations();
+}
+
+export async function getAutomationAction(key: AutomationKey): Promise<{ automation: Automation; sends: AutomationSend[] } | null> {
+  await requireAdmin();
+  if (!AUTOMATION_KEYS.includes(key)) return null;
+  const automation = await getAutomation(key);
+  return automation ? { automation, sends: await listAutomationSends(key) } : null;
+}
+
+export async function saveAutomationAction(
+  key: AutomationKey,
+  a: { enabled: boolean; days: number; options: AutomationOptions; draft: NewsletterDraft },
+): Promise<Automation | null> {
+  const me = await requireAdmin();
+  if (!AUTOMATION_KEYS.includes(key)) throw new Error("unknown automation");
+  if (a.enabled && (!a.draft.subject.trim() || !a.draft.body.trim())) throw new Error("empty message");
+  const options: AutomationOptions = { afterType: String(a.options.afterType ?? ""), skipIfType: String(a.options.skipIfType ?? "") };
+  await saveAutomation(key, { ...a, options }, me);
+  return getAutomation(key);
 }
 
 /** The signed-in administrator's address — the default for test sends. */

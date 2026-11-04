@@ -52,6 +52,11 @@ export function nowLocalSql(): string {
   return new Date(wallClockMs(now)).toISOString().slice(0, 19).replace("T", " ");
 }
 
+/** A given instant as Polish wall clock, in the starts_at/ends_at format. */
+export function localSqlAt(at: Date): string {
+  return new Date(wallClockMs(at)).toISOString().slice(0, 19).replace("T", " ");
+}
+
 /** Whether the date has passed (compared as real instants, not as strings). */
 export function isPastLocalSql(sql: string): boolean {
   return localSqlToDate(sql).getTime() < Date.now();

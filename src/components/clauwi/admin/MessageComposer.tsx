@@ -60,7 +60,7 @@ function shortDate(sql: string): string {
 }
 
 /** Shown when the filters match nobody, so the preview still has something to fill in. */
-const SAMPLE: NewsletterRecipient = {
+export const SAMPLE: NewsletterRecipient = {
   email: "anna.kowalska@example.com",
   firstName: "Anna",
   lastName: "Kowalska",
@@ -193,7 +193,7 @@ function Templates({ draft, onLoad, onClose }: { draft: NewsletterDraft; onLoad:
 }
 
 /** The test-send dialog. */
-function TestSend({ onSend, onClose }: { onSend: (to: string) => Promise<void>; onClose: () => void }) {
+export function TestSend({ onSend, onClose }: { onSend: (to: string) => Promise<void>; onClose: () => void }) {
   const [to, setTo] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
   useEffect(() => {

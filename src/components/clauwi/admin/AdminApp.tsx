@@ -16,6 +16,7 @@ import {
 import { CoursesTab } from "./CoursesTab";
 import { NewsletterTab } from "./NewsletterTab";
 import { MailingsTab } from "./MailingsTab";
+import { AutomationsTab } from "./AutomationsTab";
 import "./admin.css";
 
 const coll = new Intl.Collator("pl");
@@ -384,7 +385,7 @@ function useToast(): [(m: string) => void, React.ReactNode] {
 }
 
 // ====== The app shell, once signed in ======
-type Tab = "doradcy" | "kursy" | "newsletter" | "wysylki" | "dostep";
+type Tab = "doradcy" | "kursy" | "newsletter" | "wysylki" | "automatyczne" | "dostep";
 
 export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; initialTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -422,6 +423,7 @@ export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; in
           </button>
           <button className={tab === "newsletter" ? "is-active" : ""} onClick={() => setTab("newsletter")}>Newsletter</button>
           <button className={tab === "wysylki" ? "is-active" : ""} onClick={() => setTab("wysylki")}>Wysyłki</button>
+          <button className={tab === "automatyczne" ? "is-active" : ""} onClick={() => setTab("automatyczne")}>Automatyczne</button>
           <button className={tab === "dostep" ? "is-active" : ""} onClick={() => setTab("dostep")}>Dostęp</button>
         </nav>
         <div className="adm-user" onClick={() => setMenu((m) => !m)}>
@@ -448,7 +450,7 @@ export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; in
 
       <main className="adm-main">
         <div className="adm-head">
-          <h1>{tab === "doradcy" ? "Doradcy" : tab === "kursy" ? "Kursy" : tab === "newsletter" ? "Newsletter" : tab === "wysylki" ? "Wysyłki" : "Zarządzanie dostępem"}</h1>
+          <h1>{tab === "doradcy" ? "Doradcy" : tab === "kursy" ? "Kursy" : tab === "newsletter" ? "Newsletter" : tab === "wysylki" ? "Wysyłki" : tab === "automatyczne" ? "Wiadomości automatyczne" : "Zarządzanie dostępem"}</h1>
           <p>
             {tab === "doradcy"
               ? "Dodawaj, edytuj i usuwaj doradców widocznych na stronie."
@@ -458,6 +460,8 @@ export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; in
                   ? "Adresy osób, które zgodziły się na e-maile z ofertami — z widżetu newslettera i z zapisów na kursy."
                   : tab === "wysylki"
                     ? "Wszystkie wiadomości wysłane z panelu — newslettery i wiadomości do uczestników kursów."
+                    : tab === "automatyczne"
+                      ? "E-maile, które wysyłają się same — po zapisie na newsletter, przed kursem i po nim. Każdy można włączyć, wyłączyć i zmienić jego treść."
                   : "Decyduj, które konta Google mają dostęp do panelu."}
           </p>
         </div>
@@ -469,6 +473,8 @@ export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; in
           <NewsletterTab toast={toast} />
         ) : tab === "wysylki" ? (
           <MailingsTab toast={toast} />
+        ) : tab === "automatyczne" ? (
+          <AutomationsTab />
         ) : (
           <AccessTab currentEmail={user.email} toast={toast} />
         )}
