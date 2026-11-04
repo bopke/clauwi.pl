@@ -12,11 +12,12 @@
 // can be hundreds of ids — too long for a URL). Drafts are kept in
 // localStorage, one per mode, so leaving the page doesn't lose them.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { NewsletterFilters, NewsletterRecipient } from "@/lib/clauwi/newsletter";
-import { buildMessageEmail, PLACEHOLDERS, unknownPlaceholders, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
+import { buildMessageEmail, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
+import { DraftEditor, EMPTY_DRAFT } from "./DraftEditor";
 import type { Course } from "@/lib/clauwi/courses";
 import {
   createCourseMessageAction, createNewsletterMailingAction, deleteTemplateAction, getCourseMessageAction, getMeAction,
@@ -58,12 +59,6 @@ function shortDate(sql: string): string {
   return d ? `${d}.${m}.${y}` : sql;
 }
 
-const EMPTY_DRAFT: NewsletterDraft = {
-  subject: "",
-  heading: "",
-  body: "Dzień dobry,\n\n",
-};
-
 /** Shown when the filters match nobody, so the preview still has something to fill in. */
 const SAMPLE: NewsletterRecipient = {
   email: "anna.kowalska@example.com",
@@ -87,23 +82,6 @@ function plural(n: number, one: string, few: string, many: string): string {
 
 const noSubscribe = () => () => {};
 
-/**
- * Markdown cheatsheet — each entry inserts its syntax into the body: `wrap`
- * goes around the selection (or a sample text), `line` starts a new line.
- * Mirrors what newsletter-template.ts renders.
- */
-const MARKDOWN_HELP: { label: string; syntax: string; sample: string; wrap?: [string, string]; line?: string; block?: boolean }[] = [
-  { label: "Pogrubienie", syntax: "**tekst**", wrap: ["**", "**"], sample: "pogrubiony tekst" },
-  { label: "Kursywa", syntax: "*tekst*", wrap: ["*", "*"], sample: "kursywa" },
-  { label: "Link", syntax: "[tekst](https://…)", wrap: ["[", "](https://clauwi.pl)"], sample: "tekst linku" },
-  { label: "Nagłówek", syntax: "## Nagłówek", line: "## ", sample: "Nagłówek" },
-  { label: "Mniejszy nagłówek", syntax: "### Nagłówek", line: "### ", sample: "Nagłówek" },
-  { label: "Lista punktowana", syntax: "- punkt", line: "- ", sample: "punkt" },
-  { label: "Lista numerowana", syntax: "1. punkt", line: "1. ", sample: "punkt" },
-  { label: "Cytat / wyróżnienie", syntax: "> tekst", line: "> ", sample: "tekst" },
-  { label: "Linia oddzielająca", syntax: "---", line: "---", sample: "", block: true },
-  { label: "Obrazek", syntax: "![opis](https://…/obraz.jpg)", wrap: ["![", "](https://)"], sample: "opis obrazka" },
-];
 
 export function MessageComposer({ kind }: { kind: ComposerKind }) {
   // Storage only exists in the browser — render the composer after hydration.
@@ -253,8 +231,6 @@ function TestSend({ onSend, onClose }: { onSend: (to: string) => Promise<void>; 
   );
 }
 
-type Field = keyof NewsletterDraft;
-
 function Composer({ kind }: { kind: ComposerKind }) {
   const [target] = useState<Target | null>(() => readTarget(kind));
   const draftKey = DRAFT_KEYS[kind];
@@ -281,21 +257,6 @@ function Composer({ kind }: { kind: ComposerKind }) {
   const [limits, setLimits] = useState<{ dailyLimit: number; sentLast24h: number } | null>(null);
   const router = useRouter();
 
-  // Where "insert" puts a placeholder: the field last focused, at its caret.
-  const subjectRef = useRef<HTMLInputElement>(null);
-  const headingRef = useRef<HTMLInputElement>(null);
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-  const lastField = useRef<Field>("body");
-  // Caret to restore once an inserted placeholder has rendered.
-  const pendingCaret = useRef<{ el: HTMLInputElement | HTMLTextAreaElement; start: number; end: number } | null>(null);
-
-  useLayoutEffect(() => {
-    const c = pendingCaret.current;
-    if (!c) return;
-    pendingCaret.current = null;
-    c.el.focus();
-    c.el.setSelectionRange(c.start, c.end);
-  }, [draft]);
 
   useEffect(() => {
     if (target?.kind !== "newsletter") return;
@@ -314,14 +275,6 @@ function Composer({ kind }: { kind: ComposerKind }) {
       () => setFailed(true),
     );
   }, [target]);
-
-  function update(field: Field, value: string) {
-    const next = { ...draft, [field]: value };
-    setDraft(next);
-    try {
-      localStorage.setItem(draftKey, JSON.stringify(next));
-    } catch {}
-  }
 
   function openConfirm() {
     setCreateFailed(false);
@@ -349,35 +302,6 @@ function Composer({ kind }: { kind: ComposerKind }) {
     }
   }
 
-  /**
-   * Replaces the field's selection with before + middle + after, then selects
-   * `middle` (or puts the caret after everything when it's empty).
-   */
-  function replaceSelection(field: Field, build: (selected: string, value: string, start: number) => [string, string, string]) {
-    const el = (field === "subject" ? subjectRef : field === "heading" ? headingRef : bodyRef).current;
-    const value = draft[field];
-    const start = el?.selectionStart ?? value.length;
-    const end = el?.selectionEnd ?? value.length;
-    const [before, middle, after] = build(value.slice(start, end), value, start);
-    const selStart = start + before.length;
-    if (el) pendingCaret.current = middle ? { el, start: selStart, end: selStart + middle.length } : { el, start: selStart + after.length, end: selStart + after.length };
-    update(field, value.slice(0, start) + before + middle + after + value.slice(end));
-  }
-
-  function insert(key: string) {
-    replaceSelection(lastField.current, () => [`{{${key}}}`, "", ""]);
-  }
-
-  // Formatting only means something in the body, so it always goes there.
-  function insertMarkdown(item: (typeof MARKDOWN_HELP)[number]) {
-    replaceSelection("body", (selected, value, start) => {
-      const text = selected || item.sample;
-      if (item.wrap) return [item.wrap[0], text, item.wrap[1]];
-      const atLineStart = start === 0 || value[start - 1] === "\n";
-      if (item.block) return [(atLineStart ? "\n" : "\n\n") + item.line!, "", "\n\n"];
-      return [(atLineStart ? "" : "\n") + item.line!, text, ""];
-    });
-  }
 
   const view =
     target?.kind === "course"
@@ -392,7 +316,6 @@ function Composer({ kind }: { kind: ComposerKind }) {
     // send time); messages about a course booking don't.
     return buildMessageEmail(draft, recipient, kind === "newsletter" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "podglad") } : { baseUrl });
   }, [draft, recipient, kind]);
-  const unknown = useMemo(() => unknownPlaceholders(`${draft.subject} ${draft.heading} ${draft.body}`), [draft]);
 
   const backHref = kind === "newsletter" ? "/admin?tab=newsletter" : "/admin?tab=kursy";
   if (!target) {
@@ -515,73 +438,18 @@ function Composer({ kind }: { kind: ComposerKind }) {
       )}
 
       <main className="adm-compose">
-        <section className="adm-compose__edit">
-          <div className="adm-compose__tools">
-            <button type="button" className="adm-btn adm-btn--ghost" onClick={() => setTemplates(true)}>Szablony…</button>
-          </div>
-          <label className="adm-f">
-            <span>Temat</span>
-            <input ref={subjectRef} value={draft.subject} onFocus={() => (lastField.current = "subject")} onChange={(e) => update("subject", e.target.value)} placeholder="np. Nowe terminy kursów w {{kurs.miasto|Twojej okolicy}}" />
-          </label>
-          <label className="adm-f">
-            <span>Nagłówek w treści</span>
-            <input ref={headingRef} value={draft.heading} onFocus={() => (lastField.current = "heading")} onChange={(e) => update("heading", e.target.value)} placeholder="np. Nowe terminy" />
-          </label>
-          <label className="adm-f adm-compose__body">
-            <span>Treść</span>
-            <textarea ref={bodyRef} value={draft.body} onFocus={() => (lastField.current = "body")} onChange={(e) => update("body", e.target.value)} />
-            <small>Formatowanie w Markdownie — ściągawka poniżej. Pusta linia zaczyna nowy akapit.</small>
-          </label>
-          {unknown.length > 0 && (
-            <p className="adm-compose__warn">
-              Nieznane pola: {unknown.map((k) => `{{${k}}}`).join(", ")} — zostaną wysłane dosłownie.
-            </p>
-          )}
-
-          <details className="adm-compose__fields">
-            <summary>Pola do personalizacji</summary>
-            <p>
-              Kliknij, aby wstawić w miejscu kursora. Dane kursu pochodzą z najnowszego pasującego kursu danej osoby. Gdy brakuje danych (np. zapis
-              z widżetu nie ma imienia ani kursu), pole jest puste — można podać zastępstwo po kresce: <code>{"{{imie|Drogi Rodzicu}}"}</code>.
-            </p>
-            {(["Osoba", "Kurs"] as const).map((group) => (
-              <div key={group}>
-                <h3>{group}</h3>
-                <ul>
-                  {PLACEHOLDERS.filter((p) => p.group === group).map((p) => (
-                    <li key={p.key}>
-                      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insert(p.key)}>
-                        <code>{`{{${p.key}}}`}</code>
-                        <span>{p.label}</span>
-                        {recipient && <em>{p.value(recipient) || "—"}</em>}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </details>
-
-          <details className="adm-compose__fields adm-compose__md">
-            <summary>Formatowanie (Markdown)</summary>
-            <p>Kliknij, aby wstawić do treści — zaznaczony tekst zostanie objęty formatowaniem.</p>
-            <ul>
-              {MARKDOWN_HELP.map((m) => (
-                <li key={m.label}>
-                  <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insertMarkdown(m)}>
-                    <code>{m.syntax}</code>
-                    <span>{m.label}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <p>
-              Enter przechodzi do nowej linii, pusta linia zaczyna nowy akapit. Adresy http(s)://… same stają się linkami. Pola personalizacji działają
-              także wewnątrz formatowania, np. <code>{"**{{imie}}**"}</code> albo <code>{"[zapisz się](https://clauwi.pl/kalendarz-wydarzen)"}</code>. Kod
-              HTML nie jest obsługiwany — pojawi się jako zwykły tekst.
-            </p>
-          </details>
-        </section>
+        <DraftEditor
+          draft={draft}
+          onChange={(next) => {
+            setDraft(next);
+            try {
+              localStorage.setItem(draftKey, JSON.stringify(next));
+            } catch {}
+          }}
+          recipient={recipient}
+          courseNote={kind === "newsletter" ? "Dane kursu pochodzą z najnowszego pasującego kursu danej osoby." : "Dane kursu to kurs, na który osoba jest zapisana."}
+          tools={<button type="button" className="adm-btn adm-btn--ghost" onClick={() => setTemplates(true)}>Szablony…</button>}
+        />
 
         <section className="adm-compose__preview">
           <div className="adm-compose__pvhead">
