@@ -18,6 +18,7 @@ interface __BaseEnv_CloudflareEnv {
 	TURNSTILE_SECRET_KEY: string;
 	COURSE_ORGANIZER_EMAIL: string;
 	EMAIL_BASE_URL: string;
+	SITE_URL: string;
 }
 declare namespace Cloudflare {
 	interface GlobalProps {
@@ -30,7 +31,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NEXTJS_ENV" | "AUTH_SECRET" | "AUTH_GOOGLE_ID" | "AUTH_GOOGLE_SECRET" | "BREVO_API_KEY" | "BREVO_SENDER_EMAIL" | "BREVO_SENDER_NAME" | "BREVO_WEBHOOK_SECRET" | "CONTACT_FORM_TO" | "TURNSTILE_SECRET_KEY" | "COURSE_ORGANIZER_EMAIL" | "EMAIL_BASE_URL">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "NEXTJS_ENV" | "AUTH_SECRET" | "AUTH_GOOGLE_ID" | "AUTH_GOOGLE_SECRET" | "BREVO_API_KEY" | "BREVO_SENDER_EMAIL" | "BREVO_SENDER_NAME" | "BREVO_WEBHOOK_SECRET" | "CONTACT_FORM_TO" | "TURNSTILE_SECRET_KEY" | "COURSE_ORGANIZER_EMAIL" | "EMAIL_BASE_URL" | "SITE_URL">> {}
 }
 
 // Begin runtime types

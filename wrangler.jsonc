@@ -15,7 +15,8 @@
    *   npx wrangler secret put BREVO_API_KEY --env prod (production)
    */
 	"name": "clauwi-staging",
-	"main": ".open-next/worker.js",
+	// OpenNext's worker plus the cron handler — see worker.ts.
+	"main": "worker.ts",
 	"compatibility_date": "2026-06-26",
 	"compatibility_flags": [
 		"nodejs_compat",
@@ -50,7 +51,17 @@
 		"BREVO_SENDER_EMAIL": "kontakt@clauwi.pl",
 		"BREVO_SENDER_NAME": "ClauWi®",
 		"CONTACT_FORM_TO": "staging-kontakt@clauwi.pl",
-		"COURSE_ORGANIZER_EMAIL": "staging-kontakt@clauwi.pl"
+		"COURSE_ORGANIZER_EMAIL": "staging-kontakt@clauwi.pl",
+		// The site's own address — the cron has no incoming request to take it from.
+		"SITE_URL": "https://staging.clauwi.pl"
+	},
+	/**
+   * Every 5 minutes: sends the next chunk of due mailings (newsletter
+   * mailings spread over days by the daily limit, course messages whose tab
+   * was closed) — see worker.ts and src/app/api/cron/route.ts.
+   */
+	"triggers": {
+		"crons": ["*/5 * * * *"]
 	},
 	"observability": {
 		"enabled": true
@@ -98,7 +109,11 @@
 				"BREVO_SENDER_EMAIL": "kontakt@clauwi.pl",
 				"BREVO_SENDER_NAME": "ClauWi®",
 				"CONTACT_FORM_TO": "kontakt@clauwi.pl",
-				"COURSE_ORGANIZER_EMAIL": "kontakt@clauwi.pl"
+				"COURSE_ORGANIZER_EMAIL": "kontakt@clauwi.pl",
+				"SITE_URL": "https://clauwi.pl"
+			},
+			"triggers": {
+				"crons": ["*/5 * * * *"]
 			},
 			// `wrangler deploy` provisions the DNS record and certificate; it
 			// fails if another DNS record already holds the name.
