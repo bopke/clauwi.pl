@@ -2,7 +2,9 @@
 
 // Public (unauthenticated) newsletter sign-up from the bar on the site.
 
-import { addNewsletterSubscriber } from "./newsletter-repo";
+import { headers } from "next/headers";
+import { addNewsletterSubscriber, recordConsent } from "./newsletter-repo";
+import { NEWSLETTER_CONSENT_TEXT } from "./consent";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -14,5 +16,7 @@ export async function subscribeNewsletterAction(formData: FormData): Promise<{ o
   if (!EMAIL_RE.test(email) || formData.get("consent") == null) return { ok: false };
 
   await addNewsletterSubscriber(email);
+  const ip = (await headers()).get("cf-connecting-ip") ?? "";
+  await recordConsent({ email, action: "granted", source: "widget", wording: NEWSLETTER_CONSENT_TEXT, ip });
   return { ok: true };
 }

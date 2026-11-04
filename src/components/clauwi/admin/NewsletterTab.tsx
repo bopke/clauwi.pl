@@ -11,7 +11,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { NEWSLETTER_PAGE_SIZE, type NewsletterCourse, type NewsletterFilters, type NewsletterPage, type NewsletterQuery } from "@/lib/clauwi/newsletter";
-import { getNewsletterAction, getNewsletterCoursesAction, removeFromNewsletterAction } from "@/app/admin/actions";
+import { getConsentHistoryAction, getNewsletterAction, getNewsletterCoursesAction, removeFromNewsletterAction } from "@/app/admin/actions";
+import { CONSENT_SOURCE_LABELS, type ConsentEntry } from "@/lib/clauwi/consent";
 import { CoursePickerModal } from "./CoursePickerModal";
 import { NEWSLETTER_FILTERS_KEY } from "./MessageComposer";
 
@@ -54,6 +55,49 @@ function formatCourseDate(sql: string): string {
   return d ? `${d}.${m}.${y}` : sql;
 }
 
+/** An address's consent log — what it agreed to or withdrew, when, and how. */
+function ConsentHistory({ email, onClose }: { email: string; onClose: () => void }) {
+  const [entries, setEntries] = useState<ConsentEntry[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    getConsentHistoryAction(email).then(setEntries, () => setFailed(true));
+  }, [email]);
+  return (
+    <div className="adm-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="adm-sheet adm-consents">
+        <div className="adm-sheet__head">
+          <h2>Historia zgód: {email}</h2>
+          <button type="button" className="adm-x" onClick={onClose} aria-label="Zamknij">×</button>
+        </div>
+        <div className="adm-sheet__body">
+          {failed ? (
+            <p className="adm-empty">Nie udało się wczytać historii.</p>
+          ) : !entries ? (
+            <p className="adm-empty">Wczytywanie…</p>
+          ) : entries.length === 0 ? (
+            <p className="adm-empty">Brak wpisów.</p>
+          ) : (
+            <ol className="adm-consents__list">
+              {entries.map((c, i) => (
+                <li key={i} className={c.action === "withdrawn" ? "is-withdrawn" : ""}>
+                  <div className="adm-consents__head">
+                    <b>{c.action === "granted" ? "Zgoda" : "Wycofanie"}</b> · {CONSENT_SOURCE_LABELS[c.source] ?? c.source}
+                    <span>{formatUtc(c.createdAt)}</span>
+                  </div>
+                  {c.wording && <q>{c.wording}</q>}
+                  <div className="adm-td-addr">
+                    {[c.ref && `dot. ${c.ref}`, c.ip && `IP ${c.ip}`, c.note].filter(Boolean).join(" · ")}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
   const [data, setData] = useState<NewsletterPage | null>(null);
   const [courses, setCourses] = useState<NewsletterCourse[]>([]);
@@ -70,6 +114,7 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
   // Bumped to refetch the current page (after a deletion).
   const [reload, setReload] = useState(0);
   const [delTarget, setDelTarget] = useState<string | null>(null);
+  const [historyOf, setHistoryOf] = useState<string | null>(null);
   const router = useRouter();
 
   // Opens the composer for everyone matching the filters as they stand.
@@ -202,7 +247,7 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
             {entries.map((e) => (
               <tr key={`${e.source}-${e.courseId ?? ""}-${e.email}-${e.createdAt}`}>
                 <td className="adm-td-name">
-                  {e.email}
+                  <button type="button" className="adm-linkbtn" title="Historia zgód" onClick={() => setHistoryOf(e.email)}>{e.email}</button>
                   {e.name && <div className="adm-td-addr">{e.name}</div>}
                 </td>
                 <td>
@@ -276,6 +321,8 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
           }}
         />
       )}
+
+      {historyOf && <ConsentHistory email={historyOf} onClose={() => setHistoryOf(null)} />}
 
       {delTarget && (
         <Confirm

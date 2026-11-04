@@ -13,7 +13,8 @@ import { sendBookingStatusEmail, sendBookingUpdatedEmail, sendBookingRemovedEmai
 import { BOOKING_FIELD_LABELS } from "@/lib/clauwi/courses";
 import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus } from "@/lib/clauwi/courses";
 import type { BookingChange } from "@/lib/clauwi/email-templates/course-booking-updated";
-import { adminListNewsletter, adminListNewsletterCourses, adminNewsletterRecipient, adminRemoveFromNewsletter } from "@/lib/clauwi/newsletter-repo";
+import { adminListNewsletter, adminListNewsletterCourses, adminNewsletterRecipient, adminRemoveFromNewsletter, consentHistory } from "@/lib/clauwi/newsletter-repo";
+import type { ConsentEntry } from "@/lib/clauwi/consent";
 import { courseMessageRecipients, sendCourseMessage } from "@/lib/clauwi/course-messages";
 import type { NewsletterDraft } from "@/lib/clauwi/newsletter-template";
 import type { NewsletterCourse, NewsletterFilters, NewsletterPage, NewsletterQuery, NewsletterRecipient } from "@/lib/clauwi/newsletter";
@@ -236,8 +237,13 @@ export async function getNewsletterCoursesAction(): Promise<NewsletterCourse[]> 
 }
 
 export async function removeFromNewsletterAction(email: string): Promise<void> {
+  const me = await requireAdmin();
+  await adminRemoveFromNewsletter(email, me);
+}
+
+export async function getConsentHistoryAction(email: string): Promise<ConsentEntry[]> {
   await requireAdmin();
-  await adminRemoveFromNewsletter(email);
+  return consentHistory(email);
 }
 
 // ----- Messages to course participants -----

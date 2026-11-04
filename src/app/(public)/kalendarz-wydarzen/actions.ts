@@ -8,7 +8,8 @@ import { headers } from "next/headers";
 import { createBooking } from "@/lib/clauwi/courses-repo";
 import { verifyTurnstileToken } from "@/lib/clauwi/turnstile";
 import { sendCourseBookingEmails } from "@/lib/clauwi/brevo";
-import { unsuppressNewsletterEmail } from "@/lib/clauwi/newsletter-repo";
+import { recordConsent, unsuppressNewsletterEmail } from "@/lib/clauwi/newsletter-repo";
+import { BOOKING_MARKETING_CONSENT_TEXT } from "@/lib/clauwi/consent";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -54,8 +55,11 @@ export async function submitBookingAction(formData: FormData): Promise<BookingFo
   if (marketingConsent) {
     try {
       await unsuppressNewsletterEmail(email);
+      await recordConsent({
+        email, action: "granted", source: "booking", ref: result.booking.id, wording: BOOKING_MARKETING_CONSENT_TEXT, ip: ip ?? "",
+      });
     } catch (e) {
-      console.error("lifting newsletter suppression failed", e);
+      console.error("recording marketing consent failed", e);
     }
   }
 

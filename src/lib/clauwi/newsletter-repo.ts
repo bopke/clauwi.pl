@@ -3,6 +3,7 @@ import "server-only";
 // D1 access for newsletter sign-ups.
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import type { ConsentEntry, ConsentSource } from "./consent";
 import { NEWSLETTER_PAGE_SIZE, type NewsletterCourse, type NewsletterFilters, type NewsletterPage, type NewsletterQuery, type NewsletterRecipient } from "./newsletter";
 
 async function db(): Promise<D1Database> {
@@ -10,9 +11,49 @@ async function db(): Promise<D1Database> {
   return env.DB;
 }
 
+// ----- Consent log (migrations/0017) -----
+
+type ConsentRecord = {
+  email: string;
+  action: "granted" | "withdrawn";
+  source: ConsentSource;
+  ref?: string;
+  wording?: string;
+  ip?: string;
+  note?: string;
+};
+
+function consentStmt(DB: D1Database, c: ConsentRecord): D1PreparedStatement {
+  return DB.prepare("INSERT INTO consent_log (email, action, source, ref, wording, ip, note) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .bind(c.email.trim(), c.action, c.source, c.ref ?? "", c.wording ?? "", c.ip ?? "", c.note ?? "");
+}
+
+/** Adds an entry to the consent log — every consent given, with its wording. */
+export async function recordConsent(c: ConsentRecord): Promise<void> {
+  await consentStmt(await db(), c).run();
+}
+
+/** An address's consent history, oldest first. */
+export async function consentHistory(email: string): Promise<ConsentEntry[]> {
+  const DB = await db();
+  const { results } = await DB.prepare(
+    "SELECT action, source, ref, wording, ip, note, created_at FROM consent_log WHERE email = ? ORDER BY created_at, id",
+  ).bind(email.trim()).all<Record<string, string>>();
+  return (results ?? []).map((r) => ({
+    action: r.action === "withdrawn" ? "withdrawn" : "granted",
+    source: r.source as ConsentSource,
+    ref: r.ref,
+    wording: r.wording,
+    ip: r.ip,
+    note: r.note,
+    createdAt: r.created_at,
+  }));
+}
+
 /**
  * Stores a newsletter-card sign-up; an address already on the list is left as
- * is. Signing up is fresh consent, so it lifts an earlier unsubscribe.
+ * is. Signing up is fresh consent, so it lifts an earlier unsubscribe. The
+ * caller records the consent itself (recordConsent).
  */
 export async function addNewsletterSubscriber(email: string): Promise<void> {
   const DB = await db();
@@ -26,10 +67,14 @@ export async function addNewsletterSubscriber(email: string): Promise<void> {
 
 export type SuppressionReason = "link" | "one-click" | "admin" | "provider-unsubscribe" | "provider-spam" | "provider-bounce";
 
-/** Stops mailings to an address. Repeating it keeps the first reason and date. */
-export async function suppressNewsletterEmail(email: string, reason: SuppressionReason): Promise<void> {
+/**
+ * Stops mailings to an address. Repeating it keeps the first reason and date
+ * (and logs the withdrawal only once).
+ */
+export async function suppressNewsletterEmail(email: string, reason: SuppressionReason, ref = ""): Promise<void> {
   const DB = await db();
-  await DB.prepare("INSERT OR IGNORE INTO newsletter_suppressions (email, reason) VALUES (?, ?)").bind(email.trim(), reason).run();
+  const res = await DB.prepare("INSERT OR IGNORE INTO newsletter_suppressions (email, reason) VALUES (?, ?)").bind(email.trim(), reason).run();
+  if (res.meta.changes > 0) await consentStmt(DB, { email, action: "withdrawn", source: reason, ref }).run();
 }
 
 /** Lifts a suppression — the person signed up again or undid the unsubscribe. */
@@ -204,10 +249,11 @@ export async function adminListNewsletterCourses(): Promise<NewsletterCourse[]> 
  * themselves stay) and records the suppression, so an import can't bring it
  * back.
  */
-export async function adminRemoveFromNewsletter(email: string): Promise<void> {
+export async function adminRemoveFromNewsletter(email: string, admin: string): Promise<void> {
   const DB = await db();
   await DB.batch([
     DB.prepare("INSERT OR IGNORE INTO newsletter_suppressions (email, reason) VALUES (?, 'admin')").bind(email),
+    consentStmt(DB, { email, action: "withdrawn", source: "admin", ref: admin }),
     DB.prepare("DELETE FROM newsletter_subscribers WHERE email = ? COLLATE NOCASE").bind(email),
     DB.prepare("UPDATE course_bookings SET marketing_consent = 0 WHERE lower(email) = lower(?)").bind(email),
   ]);

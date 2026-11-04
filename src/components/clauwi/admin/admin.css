@@ -337,3 +337,14 @@
   .adm-compose { grid-template-columns: 1fr; }
   .adm-compose__preview { position: static; height: 80vh; }
 }
+
+/* ----- Consent history ----- */
+.adm-sheet.adm-consents { max-width: 640px; }
+.adm-td-name .adm-linkbtn { padding: 0; font-family: inherit; font-weight: inherit; font-size: inherit; color: inherit; text-decoration-color: var(--line); text-align: left; }
+.adm-td-name .adm-linkbtn:hover { color: var(--green-d); text-decoration-color: currentColor; }
+.adm-consents__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.adm-consents__list li { padding: 10px 14px; border-left: 3px solid var(--sage); background: #faf8f1; border-radius: 0 10px 10px 0; }
+.adm-consents__list li.is-withdrawn { border-left-color: var(--danger); }
+.adm-consents__head { display: flex; gap: 6px; flex-wrap: wrap; font-size: 14px; }
+.adm-consents__head span { margin-left: auto; color: var(--ink-soft); }
+.adm-consents__list q { display: block; margin: 6px 0 2px; font-size: 13px; color: var(--ink); font-style: italic; }

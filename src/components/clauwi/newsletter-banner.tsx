@@ -131,6 +131,7 @@ export function NewsletterBanner() {
               </div>
               {/* Honeypot — see subscribeNewsletterAction. */}
               <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -left-[9999px] h-0 w-0 opacity-0" />
+              {/* Wording kept in step with NEWSLETTER_CONSENT_TEXT (consent log). */}
               {engaged && (
                 <label className="mt-1.5 flex items-start gap-2 text-left font-sans text-[12px] leading-[1.4] text-[#4a5568]">
                   <input type="checkbox" name="consent" required className="mt-0.5 shrink-0 accent-[#cb8c7c]" />

@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { submitBookingAction, type BookingFormResult } from "@/app/(public)/kalendarz-wydarzen/actions";
 import { useTurnstile } from "./use-turnstile";
+import { BOOKING_MARKETING_CONSENT_TEXT } from "@/lib/clauwi/consent";
 
 const INITIAL: BookingFormResult = { ok: false, error: "" };
 
@@ -60,7 +61,7 @@ export function BookingForm({ courseId, spotsLeft }: { courseId: string; spotsLe
       </label>
       <label className="flex items-start gap-3 text-sm text-ink/70">
         <input type="checkbox" name="marketingConsent" value="1" className="mt-1 size-4 shrink-0 accent-[#cb8c7c]" />
-        <span>Chcę otrzymywać e-mailem informacje o kolejnych kursach i ofertach ClauWi® (opcjonalnie).</span>
+        <span>{BOOKING_MARKETING_CONSENT_TEXT}</span>
       </label>
       <div ref={turnstileContainerRef} className="turnstile-widget" />
       {state.error && <p className="text-sm text-red-600">{state.error}</p>}
