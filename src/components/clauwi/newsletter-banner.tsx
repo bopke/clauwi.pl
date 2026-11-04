@@ -7,8 +7,8 @@ import { subscribeNewsletterAction } from "@/lib/clauwi/newsletter-actions";
 
 const DISMISSED_KEY = "clauwi-newsletter-dismissed";
 const EVENT = "clauwi-newsletter-change";
-/** How long the thank-you note stays up before the card goes away. */
-const THANKS_MS = 3500;
+/** How long the "check your inbox" note stays up before the card goes away. */
+const THANKS_MS = 8000;
 
 // Storage can be missing or throw (private mode, blocked site data) — then
 // the card simply shows again on the next visit.
@@ -106,9 +106,10 @@ export function NewsletterBanner() {
             <p className="font-heading text-[17px] leading-snug max-[639px]:hidden">Nowe terminy kursów i oferty — prosto na Twoją skrzynkę.</p>
           </div>
           {done ? (
-            <p role="status" className="font-heading text-[20px] text-[#692d2c]">
-              Dziękujemy za zapis!
-            </p>
+            <div role="status">
+              <p className="font-heading text-[20px] text-[#692d2c]">Sprawdź skrzynkę!</p>
+              <p className="font-sans text-[13px] leading-snug">Wysłaliśmy link potwierdzający — zapis będzie aktywny po jego kliknięciu.</p>
+            </div>
           ) : (
             <form onFocus={() => setEngaged(true)} onSubmit={onSubmit}>
               <div className="flex gap-2">

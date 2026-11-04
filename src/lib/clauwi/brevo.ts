@@ -7,6 +7,7 @@ import { courseBookingUpdatedEmail, type BookingChange } from "./email-templates
 import { courseBookingRemovedEmail } from "./email-templates/course-booking-removed";
 import { contactFormEmail } from "./email-templates/contact-form";
 import { opinionFormEmail } from "./email-templates/opinion-form";
+import { newsletterConfirmEmail } from "./email-templates/newsletter-confirm";
 import { renderEmail, resolveEmailBaseUrl, type EmailContent } from "./email-templates/layout";
 import { buildCourseIcs, icsFileName, type IcsMethod } from "./ics";
 import { formatRange } from "./time";
@@ -153,6 +154,12 @@ export async function sendOpinionEmail(submission: OpinionSubmission): Promise<v
     content: opinionFormEmail(submission),
     replyTo: submission.email ? { email: submission.email, name: submission.name || undefined } : undefined,
   });
+}
+
+// Double opt-in: the link that puts a newsletter-card sign-up on the list.
+export async function sendNewsletterConfirmEmail(to: string, token: string): Promise<void> {
+  const confirmUrl = `${await emailBaseUrl()}/newsletter/potwierdz/${token}`;
+  await sendTemplate({ to, content: newsletterConfirmEmail({ confirmUrl }) });
 }
 
 // ----- Courses -----

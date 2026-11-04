@@ -50,17 +50,69 @@ export async function consentHistory(email: string): Promise<ConsentEntry[]> {
   }));
 }
 
+// ----- Double opt-in (migrations/0022) -----
+
+function randomToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 /**
- * Stores a newsletter-card sign-up; an address already on the list is left as
- * is. Signing up is fresh consent, so it lifts an earlier unsubscribe. The
- * caller records the consent itself (recordConsent).
+ * Records a sign-up waiting for confirmation and returns its token — or null
+ * when no e-mail should go out: the address is already on the list, it was
+ * sent a link within the hour, or this IP has signed up too many addresses
+ * lately (someone filling in other people's addresses).
  */
-export async function addNewsletterSubscriber(email: string): Promise<void> {
+export async function createPendingSignup(email: string, wording: string, ip: string): Promise<string | null> {
   const DB = await db();
-  await DB.batch([
-    DB.prepare("INSERT OR IGNORE INTO newsletter_subscribers (email) VALUES (?)").bind(email),
-    DB.prepare("DELETE FROM newsletter_suppressions WHERE email = ?").bind(email),
+  const [onList, recent, fromIp] = await DB.batch<{ n: number }>([
+    DB.prepare(
+      `SELECT count(*) AS n FROM newsletter_subscribers n
+        WHERE n.email = ?1 AND NOT EXISTS (SELECT 1 FROM newsletter_suppressions s WHERE s.email = n.email)`,
+    ).bind(email),
+    DB.prepare("SELECT count(*) AS n FROM newsletter_pending WHERE email = ? AND created_at >= datetime('now', '-1 hour')").bind(email),
+    DB.prepare("SELECT count(*) AS n FROM newsletter_pending WHERE ip = ? AND ip != '' AND created_at >= datetime('now', '-1 hour')").bind(ip),
   ]);
+  const n = (r: D1Result<{ n: number }>) => Number(r.results?.[0]?.n ?? 0);
+  if (n(onList) > 0 || n(recent) > 0 || n(fromIp) >= 5) return null;
+  const token = randomToken();
+  await DB.prepare("INSERT INTO newsletter_pending (token, email, wording, ip) VALUES (?, ?, ?, ?)").bind(token, email, wording, ip).run();
+  return token;
+}
+
+export type PendingSignup = { email: string; confirmed: boolean; expired: boolean };
+
+export async function findPendingSignup(token: string): Promise<PendingSignup | null> {
+  const row = await (await db()).prepare(
+    `SELECT email, confirmed_at IS NOT NULL AS confirmed, created_at < datetime('now', '-7 days') AS expired
+       FROM newsletter_pending WHERE token = ?`,
+  ).bind(token).first<{ email: string; confirmed: number; expired: number }>();
+  return row ? { email: row.email, confirmed: !!row.confirmed, expired: !!row.expired } : null;
+}
+
+/**
+ * The confirmation link was used: the address joins the list (lifting an
+ * earlier unsubscribe — it's fresh consent) and the consent is logged with
+ * the sign-up's wording and IP. Returns the address if this call confirmed
+ * it (not on a repeat click).
+ */
+export async function confirmPendingSignup(token: string, confirmIp: string): Promise<string | null> {
+  const DB = await db();
+  const row = await DB.prepare(
+    `UPDATE newsletter_pending SET confirmed_at = datetime('now')
+      WHERE token = ? AND confirmed_at IS NULL AND created_at >= datetime('now', '-7 days')
+      RETURNING email, wording, ip, created_at`,
+  ).bind(token).first<{ email: string; wording: string; ip: string; created_at: string }>();
+  if (!row) return null;
+  await DB.batch([
+    DB.prepare("INSERT OR IGNORE INTO newsletter_subscribers (email, source) VALUES (?, 'widget')").bind(row.email),
+    DB.prepare("DELETE FROM newsletter_suppressions WHERE email = ?").bind(row.email),
+    consentStmt(DB, {
+      email: row.email, action: "granted", source: "widget", wording: row.wording, ip: row.ip,
+      note: `zapis ${row.created_at} UTC, potwierdzony linkiem z e-maila${confirmIp ? ` (IP ${confirmIp})` : ""}`,
+    }),
+  ]);
+  return row.email;
 }
 
 // ----- Unsubscribing -----

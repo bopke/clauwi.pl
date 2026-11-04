@@ -15,6 +15,7 @@ import { courseBookingUpdatedEmail } from "../src/lib/clauwi/email-templates/cou
 import { courseBookingRemovedEmail } from "../src/lib/clauwi/email-templates/course-booking-removed";
 import { contactFormEmail } from "../src/lib/clauwi/email-templates/contact-form";
 import { opinionFormEmail } from "../src/lib/clauwi/email-templates/opinion-form";
+import { newsletterConfirmEmail } from "../src/lib/clauwi/email-templates/newsletter-confirm";
 import { renderEmail } from "../src/lib/clauwi/email-templates/layout";
 
 const course = {
@@ -58,6 +59,7 @@ const templates = {
     email: "marta@example.com",
     opinion: "Świetny kurs!\nDużo praktyki i wspaniała atmosfera.",
   }),
+  "09-newsletter-confirm": newsletterConfirmEmail({ confirmUrl: "https://clauwi.pl/newsletter/potwierdz/przyklad" }),
 };
 
 const dir = ".email-previews";
