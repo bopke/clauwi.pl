@@ -410,3 +410,8 @@ button.adm-chip.is-on { border-color: currentColor; }
 .adm-import__stats { padding: 10px 14px; border-radius: 11px; background: #faf8f1; font-size: 14px; }
 .adm-import__h { font-size: 14px; color: var(--ink-soft); margin-top: 8px !important; }
 .adm-import .adm-sheet__body > * { flex-shrink: 0; }
+
+/* ----- Segmented switch (newsletter: list / unsubscribed) ----- */
+.adm-seg { display: inline-flex; gap: 4px; padding: 4px; margin: 0 0 16px; background: #fff; border: 1.5px solid var(--line); border-radius: 12px; }
+.adm-seg button { border: none; background: none; padding: 7px 16px; border-radius: 9px; font-family: "Quicksand", sans-serif; font-weight: 700; font-size: 14px; color: var(--ink-soft); cursor: pointer; }
+.adm-seg button.is-on { background: var(--green); color: #fff; }

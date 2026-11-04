@@ -16,6 +16,7 @@ import type { BookingChange } from "@/lib/clauwi/email-templates/course-booking-
 import {
   adminListNewsletter, adminListNewsletterCourses, adminNewsletterRecipient, adminRemoveFromNewsletter, consentHistory,
   createNewsletterImport, importNewsletterChunk, listNewsletterImports, undoNewsletterImport,
+  adminListSuppressions, adminRestoreSubscriber, type SuppressionRow,
 } from "@/lib/clauwi/newsletter-repo";
 import type { ConsentEntry } from "@/lib/clauwi/consent";
 import { courseMessageRecipients, createCourseMessage } from "@/lib/clauwi/course-messages";
@@ -287,6 +288,16 @@ export async function undoImportAction(id: string): Promise<NewsletterImport[]> 
   const me = await requireAdmin();
   await undoNewsletterImport(id, me);
   return listNewsletterImports();
+}
+
+export async function getSuppressionsAction(opts: { page: number; q: string }): Promise<{ rows: SuppressionRow[]; total: number }> {
+  await requireAdmin();
+  return adminListSuppressions(opts);
+}
+
+export async function restoreSubscriberAction(email: string): Promise<void> {
+  const me = await requireAdmin();
+  await adminRestoreSubscriber(email, me);
 }
 
 export async function getConsentHistoryAction(email: string): Promise<ConsentEntry[]> {

@@ -11,7 +11,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { NEWSLETTER_PAGE_SIZE, type NewsletterCourse, type NewsletterFilters, type NewsletterPage, type NewsletterQuery } from "@/lib/clauwi/newsletter";
-import { getConsentHistoryAction, getNewsletterAction, getNewsletterCoursesAction, removeFromNewsletterAction } from "@/app/admin/actions";
+import {
+  getConsentHistoryAction, getNewsletterAction, getNewsletterCoursesAction, getSuppressionsAction, removeFromNewsletterAction, restoreSubscriberAction,
+} from "@/app/admin/actions";
+import type { SuppressionRow } from "@/lib/clauwi/newsletter-repo";
 import { CONSENT_SOURCE_LABELS, type ConsentEntry } from "@/lib/clauwi/consent";
 import { CoursePickerModal } from "./CoursePickerModal";
 import { ImportModal } from "./ImportModal";
@@ -99,6 +102,109 @@ function ConsentHistory({ email, onClose }: { email: string; onClose: () => void
   );
 }
 
+/** Addresses that unsubscribed, bounced or were removed — and why. */
+function SuppressionsList({ toast, onHistory }: { toast: (m: string) => void; onHistory: (email: string) => void }) {
+  const [data, setData] = useState<{ rows: SuppressionRow[]; total: number } | null>(null);
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [reload, setReload] = useState(0);
+  const [restoring, setRestoring] = useState<SuppressionRow | null>(null);
+
+  useEffect(() => {
+    if (q === debouncedQ) return;
+    const t = setTimeout(() => { setDebouncedQ(q); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [q, debouncedQ]);
+
+  useEffect(() => {
+    let stale = false;
+    getSuppressionsAction({ page, q: debouncedQ }).then((res) => { if (!stale) setData(res); }, () => {});
+    return () => { stale = true; };
+  }, [page, debouncedQ, reload]);
+
+  async function restore() {
+    if (!restoring) return;
+    try {
+      await restoreSubscriberAction(restoring.email);
+      toast("Przywrócono: " + restoring.email);
+    } catch {
+      toast("Nie udało się przywrócić adresu.");
+    } finally {
+      setRestoring(null);
+      setReload((n) => n + 1);
+    }
+  }
+
+  const total = data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / NEWSLETTER_PAGE_SIZE));
+  return (
+    <>
+      <div className="adm-toolbar">
+        <div className="adm-search">
+          <span aria-hidden="true">⌕</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Szukaj adresu…" />
+        </div>
+        <span className="adm-count">{total} {plural(total, "adres", "adresy", "adresów")}</span>
+      </div>
+      <p className="adm-compose__hint">
+        Te adresy nie dostaną żadnego newslettera, nawet jeśli znajdą się w imporcie. Wiadomości do uczestników kursów i potwierdzenia zapisów
+        dochodzą normalnie. Ponowny zapis przez widżet lub na kurs ze zgodą sam zdejmuje adres z tej listy.
+      </p>
+      <div className="adm-tablewrap">
+        <table className="adm-table">
+          <thead><tr><th>E-mail</th><th>Powód</th><th>Od kiedy</th><th className="adm-th-act">Akcje</th></tr></thead>
+          <tbody>
+            {(data?.rows ?? []).map((r) => (
+              <tr key={r.email}>
+                <td className="adm-td-name">
+                  <button type="button" className="adm-linkbtn" title="Historia zgód" onClick={() => onHistory(r.email)}>{r.email}</button>
+                </td>
+                <td>{CONSENT_SOURCE_LABELS[r.reason] ?? r.reason}</td>
+                <td className="adm-td-addr">{formatUtc(r.createdAt)}</td>
+                <td className="adm-td-act">
+                  <button className="adm-btn adm-btn--ghost" onClick={() => setRestoring(r)}>Przywróć</button>
+                </td>
+              </tr>
+            ))}
+            {data && data.rows.length === 0 && (
+              <tr><td colSpan={4} className="adm-empty">{debouncedQ ? "Brak takiego adresu." : "Nikt się jeszcze nie wypisał."}</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {pages > 1 && (
+        <nav className="adm-pager" aria-label="Strony">
+          <button className="adm-btn adm-btn--ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>‹ Poprzednia</button>
+          <span className="adm-pager__info">strona {page} z {pages}</span>
+          <button className="adm-btn adm-btn--ghost" disabled={page >= pages} onClick={() => setPage(page + 1)}>Następna ›</button>
+        </nav>
+      )}
+      {restoring && (
+        <div className="adm-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) setRestoring(null); }}>
+          <div className="adm-confirm">
+            <h2>Przywrócić na listę?</h2>
+            <p>
+              Przywracaj adres tylko na wyraźną prośbę tej osoby — np. napisała, że wypisała się przez pomyłkę. Wysyłanie newslettera bez zgody jest
+              niezgodne z prawem.
+            </p>
+            {restoring.reason === "provider-bounce" && (
+              <p className="adm-compose__warn">Na ten adres poczta nie dochodziła (odbicie). Przywróć go tylko, jeśli wiesz, że znów działa.</p>
+            )}
+            {restoring.reason === "provider-spam" && (
+              <p className="adm-compose__warn">Ta osoba oznaczyła naszą wiadomość jako spam.</p>
+            )}
+            <div className="adm-confirm__foot">
+              <button className="adm-btn adm-btn--ghost" onClick={() => setRestoring(null)}>Anuluj</button>
+              <button className="adm-btn adm-btn--solid" onClick={restore}>Przywróć {restoring.email}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
   const [data, setData] = useState<NewsletterPage | null>(null);
   const [courses, setCourses] = useState<NewsletterCourse[]>([]);
@@ -117,6 +223,8 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
   const [delTarget, setDelTarget] = useState<string | null>(null);
   const [historyOf, setHistoryOf] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [view, setView] = useState<"list" | "suppressed">("list");
+  const [exporting, setExporting] = useState(false);
   const router = useRouter();
 
   // Opens the composer for everyone matching the filters as they stand.
@@ -155,6 +263,26 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
     return () => { stale = true; };
   }, [page, debouncedQ, source, courseType, courseIds, reload]);
 
+  /** Downloads the list as filtered right now. */
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const filters: NewsletterFilters = { q: debouncedQ, source, courseType, courseIds };
+      const res = await fetch("/admin/newsletter/eksport", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(filters) });
+      if (!res.ok) throw new Error(String(res.status));
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = /filename="([^"]+)"/.exec(res.headers.get("content-disposition") ?? "")?.[1] ?? "newsletter.csv";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      toast("Nie udało się wyeksportować listy.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function doDelete() {
     if (!delTarget) return;
     try {
@@ -182,8 +310,28 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
   const from = total === 0 ? 0 : (page - 1) * NEWSLETTER_PAGE_SIZE + 1;
   const to = Math.min(page * NEWSLETTER_PAGE_SIZE, total);
 
+  const switcher = (
+    <div className="adm-seg" role="tablist">
+      <button role="tab" aria-selected={view === "list"} className={view === "list" ? "is-on" : ""} onClick={() => setView("list")}>Na liście</button>
+      <button role="tab" aria-selected={view === "suppressed"} className={view === "suppressed" ? "is-on" : ""} onClick={() => setView("suppressed")}>
+        Wypisani
+      </button>
+    </div>
+  );
+
+  if (view === "suppressed") {
+    return (
+      <div>
+        {switcher}
+        <SuppressionsList toast={toast} onHistory={setHistoryOf} />
+        {historyOf && <ConsentHistory email={historyOf} onClose={() => setHistoryOf(null)} />}
+      </div>
+    );
+  }
+
   return (
     <div>
+      {switcher}
       <div className="adm-toolbar">
         <div className="adm-search">
           <span aria-hidden="true">⌕</span>
@@ -231,6 +379,9 @@ export function NewsletterTab({ toast }: { toast: (m: string) => void }) {
           {data && data.uniqueEmails !== total && ` · ${data.uniqueEmails} ${plural(data.uniqueEmails, "unikalny adres", "unikalne adresy", "unikalnych adresów")}`}
         </span>
         <button type="button" className="adm-btn adm-btn--ghost" onClick={() => setImporting(true)}>Importuj…</button>
+        <button type="button" className="adm-btn adm-btn--ghost" disabled={exporting || total === 0} onClick={exportCsv} title="Pobierz listę z bieżącymi filtrami jako plik CSV (Excel)">
+          {exporting ? "Eksport…" : "Eksport CSV"}
+        </button>
         <button
           type="button"
           className="adm-btn adm-btn--solid"

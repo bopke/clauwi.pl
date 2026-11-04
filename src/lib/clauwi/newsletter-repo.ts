@@ -394,3 +394,49 @@ export async function undoNewsletterImport(id: string, admin: string): Promise<v
     DB.prepare("UPDATE newsletter_imports SET undone_at = datetime('now') WHERE id = ?").bind(id),
   ]);
 }
+
+// ----- Unsubscribed addresses -----
+
+export type SuppressionRow = { email: string; reason: SuppressionReason; createdAt: string };
+
+export async function adminListSuppressions(opts: { page: number; q: string }): Promise<{ rows: SuppressionRow[]; total: number }> {
+  const DB = await db();
+  const like = opts.q.trim() ? "%" + opts.q.trim().toLowerCase().replace(/[\\%_]/g, "\\$&") + "%" : "";
+  const where = "WHERE (?1 = '' OR lower(email) LIKE ?1 ESCAPE '\\')";
+  const page = Math.max(1, Math.floor(opts.page) || 1);
+  const [rows, count] = await DB.batch<Record<string, string | number>>([
+    DB.prepare(`SELECT email, reason, created_at FROM newsletter_suppressions ${where} ORDER BY created_at DESC, email LIMIT ?2 OFFSET ?3`)
+      .bind(like, NEWSLETTER_PAGE_SIZE, (page - 1) * NEWSLETTER_PAGE_SIZE),
+    DB.prepare(`SELECT count(*) AS n FROM newsletter_suppressions ${where}`).bind(like),
+  ]);
+  return {
+    total: Number(count.results?.[0]?.n ?? 0),
+    rows: (rows.results ?? []).map((r) => ({ email: String(r.email), reason: String(r.reason) as SuppressionReason, createdAt: String(r.created_at) })),
+  };
+}
+
+/**
+ * Puts an unsubscribed address back on the list — only ever at the person's
+ * own request (they unsubscribed by mistake, the provider bounced a working
+ * address). Logged as a consent given through the panel.
+ */
+export async function adminRestoreSubscriber(email: string, admin: string): Promise<void> {
+  const DB = await db();
+  await DB.batch([
+    DB.prepare("DELETE FROM newsletter_suppressions WHERE email = ?").bind(email),
+    // Only when nothing else keeps it on the list (a booking with marketing consent).
+    DB.prepare(
+      `INSERT OR IGNORE INTO newsletter_subscribers (email, source)
+       SELECT ?1, 'admin' WHERE NOT EXISTS (SELECT 1 FROM course_bookings WHERE lower(email) = lower(?1) AND marketing_consent = 1)`,
+    ).bind(email),
+    consentStmt(DB, { email, action: "granted", source: "admin-restore", ref: admin, note: "przywrócone w panelu na prośbę osoby" }),
+  ]);
+}
+
+/** Every entry matching the filters, for the CSV export — the list as shown, unpaged. */
+export async function adminExportNewsletter(filters: NewsletterFilters): Promise<Record<string, string | number | null>[]> {
+  const DB = await db();
+  const { results } = await DB.prepare(`SELECT * FROM (${ENTRIES}) ${WHERE} ORDER BY created_at DESC, email`)
+    .bind(...whereParams(filters)).all<Record<string, string | number | null>>();
+  return results ?? [];
+}
