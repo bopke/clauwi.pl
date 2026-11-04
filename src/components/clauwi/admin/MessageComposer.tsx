@@ -1,11 +1,12 @@
 "use client";
 
 // Message composer, in two modes:
-// - "newsletter": a mailing to the people picked on the "Newsletter" tab
-//   (sending comes later),
+// - "newsletter": a mailing to the people picked on the "Newsletter" tab,
 // - "course": a message to participants ticked on a course's booking list.
 // The message on the left, a live preview on the right, rendered for one real
-// recipient at a time so the placeholders can be checked.
+// recipient at a time so the placeholders can be checked. Sending records the
+// message with its recipients and moves to its page in "Wysyłki", which shows
+// the progress (see mailings-repo.ts).
 //
 // The calling list hands the recipients over in sessionStorage (a selection
 // can be hundreds of ids — too long for a URL). Drafts are kept in
@@ -13,10 +14,14 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { NewsletterFilters, NewsletterRecipient } from "@/lib/clauwi/newsletter";
 import { buildMessageEmail, PLACEHOLDERS, unknownPlaceholders, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
-import { COURSE_MESSAGE_CHUNK, type Course } from "@/lib/clauwi/courses";
-import { getCourseMessageAction, getNewsletterRecipientAction, sendCourseMessageAction } from "@/app/admin/actions";
+import type { Course } from "@/lib/clauwi/courses";
+import {
+  createCourseMessageAction, createNewsletterMailingAction, getCourseMessageAction, getMeAction, getNewsletterRecipientAction,
+  getSendingSettingsAction, sendTestAction,
+} from "@/app/admin/actions";
 import "./admin.css";
 
 export type ComposerKind = "newsletter" | "course";
@@ -105,10 +110,57 @@ export function MessageComposer({ kind }: { kind: ComposerKind }) {
   return mounted ? <Composer kind={kind} /> : null;
 }
 
-type Sending =
-  | { phase: "confirm" }
-  | { phase: "sending"; done: number; total: number }
-  | { phase: "done"; sent: number; failed: string[]; failedIds: string[] };
+/** datetime-local value (the admin's local time) → UTC "YYYY-MM-DD HH:MM:SS". */
+function localToUtcSql(local: string): string {
+  return new Date(local).toISOString().slice(0, 19).replace("T", " ");
+}
+
+/** datetime-local value for an hour from now, on the full hour. */
+function inAnHour(): string {
+  const d = new Date(Date.now() + 60 * 60 * 1000);
+  d.setMinutes(0, 0, 0);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`;
+}
+
+/** The test-send dialog. */
+function TestSend({ onSend, onClose }: { onSend: (to: string) => Promise<void>; onClose: () => void }) {
+  const [to, setTo] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "failed">("idle");
+  useEffect(() => {
+    getMeAction().then((me) => setTo((t) => t || me), () => {});
+  }, []);
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setState("sending");
+    try {
+      await onSend(to);
+      setState("sent");
+    } catch {
+      setState("failed");
+    }
+  }
+  return (
+    <div className="adm-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <form className="adm-confirm" onSubmit={submit}>
+        <h2>Wyślij test</h2>
+        <p>Wiadomość w wersji z podglądu (z danymi pokazywanej osoby) trafi tylko na podany adres, z „[TEST]” w temacie.</p>
+        <label className="adm-f">
+          <span>Adres</span>
+          <input type="email" required value={to} onChange={(e) => { setTo(e.target.value); setState("idle"); }} autoFocus />
+        </label>
+        {state === "sent" && <p className="adm-compose__ok">Wysłano — sprawdź skrzynkę (także folder spam).</p>}
+        {state === "failed" && <p className="adm-compose__warn">Nie udało się wysłać testu.</p>}
+        <div className="adm-confirm__foot">
+          <button type="button" className="adm-btn adm-btn--ghost" onClick={onClose}>Zamknij</button>
+          <button type="submit" className="adm-btn adm-btn--solid" disabled={state === "sending" || !to}>
+            {state === "sending" ? "Wysyłanie…" : state === "sent" ? "Wyślij ponownie" : "Wyślij test"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
 
 type Field = keyof NewsletterDraft;
 
@@ -128,7 +180,14 @@ function Composer({ kind }: { kind: ComposerKind }) {
   // Course: the few chosen participants are fetched at once.
   const [courseData, setCourseData] = useState<{ course: Course; recipients: NewsletterRecipient[]; bookingIds: string[] } | null>(null);
   const [failed, setFailed] = useState(false);
-  const [sending, setSending] = useState<Sending | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createFailed, setCreateFailed] = useState(false);
+  // Newsletter: "" = send now, otherwise a datetime-local value.
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [limits, setLimits] = useState<{ dailyLimit: number; sentLast24h: number } | null>(null);
+  const router = useRouter();
 
   // Where "insert" puts a placeholder: the field last focused, at its caret.
   const subjectRef = useRef<HTMLInputElement>(null);
@@ -172,36 +231,29 @@ function Composer({ kind }: { kind: ComposerKind }) {
     } catch {}
   }
 
-  /**
-   * Course mode: sends to everyone chosen — or, retrying, to `only` those it
-   * failed for — chunk by chunk, showing progress.
-   */
-  async function send(only?: string[]) {
-    if (target?.kind !== "course" || !courseData) return;
-    const ids = only ?? courseData.bookingIds;
-    // recipients[i] belongs to bookingIds[i]
-    const emailOf = new Map(courseData.bookingIds.map((id, i) => [id, courseData.recipients[i].email]));
-    let sent = 0;
-    const failedTo: string[] = [];
-    setSending({ phase: "sending", done: 0, total: ids.length });
-    for (let i = 0; i < ids.length; i += COURSE_MESSAGE_CHUNK) {
-      const chunk = ids.slice(i, i + COURSE_MESSAGE_CHUNK);
-      try {
-        const res = await sendCourseMessageAction(target.courseId, chunk, draft);
-        sent += res.sent;
-        failedTo.push(...res.failed);
-      } catch {
-        // The whole chunk failed (e.g. network) — report its addresses.
-        failedTo.push(...chunk.map((id) => emailOf.get(id) ?? id));
-      }
-      setSending({ phase: "sending", done: Math.min(i + chunk.length, ids.length), total: ids.length });
-    }
-    const failedSet = new Set(failedTo);
-    setSending({ phase: "done", sent, failed: failedTo, failedIds: ids.filter((id) => failedSet.has(emailOf.get(id) ?? "")) });
-    if (failedTo.length === 0) {
+  function openConfirm() {
+    setCreateFailed(false);
+    setConfirming(true);
+    if (kind === "newsletter") getSendingSettingsAction().then(setLimits, () => {});
+  }
+
+  /** Records the mailing and moves to its page, which takes care of sending. */
+  async function send() {
+    if (!target) return;
+    setCreating(true);
+    setCreateFailed(false);
+    try {
+      const id =
+        target.kind === "course"
+          ? await createCourseMessageAction(target.courseId, courseData?.bookingIds ?? [], draft)
+          : await createNewsletterMailingAction(target.filters, draft, summary.join(" · ") || "wszyscy z listy newslettera", scheduleAt ? localToUtcSql(scheduleAt) : undefined);
       try {
         localStorage.removeItem(draftKey);
       } catch {}
+      router.push(`/admin/wysylki/${id}`);
+    } catch {
+      setCreateFailed(true);
+      setCreating(false);
     }
   }
 
@@ -279,8 +331,11 @@ function Composer({ kind }: { kind: ComposerKind }) {
       : courseData
         ? [`uczestnicy kursu ${courseData.course.name} (${shortDate(courseData.course.startsAt)})`]
         : [];
-  const canSend = kind === "course" && total > 0 && draft.subject.trim() !== "" && draft.body.trim() !== "" && !sending;
+  const canSend = total > 0 && draft.subject.trim() !== "" && draft.body.trim() !== "" && !creating;
   const people = `${total} ${plural(total, "osoby", "osób", "osób")}`;
+  // How many days a newsletter mailing will take at the daily limit.
+  const room = limits ? Math.max(0, limits.dailyLimit - limits.sentLast24h) : 0;
+  const days = limits ? (total <= room ? 1 : 1 + Math.ceil((total - room) / limits.dailyLimit)) : 1;
 
   return (
     <div className="adm-root">
@@ -293,61 +348,63 @@ function Composer({ kind }: { kind: ComposerKind }) {
             {summary.length > 0 && <> · {summary.join(" · ")}</>}
           </span>
         </div>
-        {kind === "newsletter" ? (
-          <button type="button" className="adm-btn adm-btn--solid" disabled title="Wysyłka newslettera będzie dostępna w kolejnym kroku">
-            Wyślij do {people}
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="adm-btn adm-btn--solid"
-            disabled={!canSend}
-            title={canSend ? undefined : "Uzupełnij temat i treść"}
-            onClick={() => setSending({ phase: "confirm" })}
-          >
-            Wyślij do {people}
-          </button>
-        )}
+        <button type="button" className="adm-btn adm-btn--ghost" disabled={!recipient || !draft.subject.trim()} onClick={() => setTesting(true)}>
+          Wyślij test
+        </button>
+        <button
+          type="button"
+          className="adm-btn adm-btn--solid"
+          disabled={!canSend}
+          title={canSend ? undefined : total === 0 ? "Brak odbiorców" : "Uzupełnij temat i treść"}
+          onClick={openConfirm}
+        >
+          Wyślij do {people}
+        </button>
       </header>
 
-      {sending && (
-        <div className="adm-modal">
+      {testing && recipient && (
+        <TestSend onSend={(to) => sendTestAction(kind, draft, recipient, to)} onClose={() => setTesting(false)} />
+      )}
+
+      {confirming && (
+        <div className="adm-modal" onMouseDown={(e) => { if (e.target === e.currentTarget && !creating) setConfirming(false); }}>
           <div className="adm-confirm">
-            {sending.phase === "confirm" ? (
+            <h2>{kind === "newsletter" && scheduleAt ? "Zaplanować wysyłkę?" : "Wysłać wiadomość?"}</h2>
+            <p>
+              „{draft.subject}” trafi do {people}
+              {courseData && <> — uczestników kursu {courseData.course.name}</>}. Każdy dostanie osobny e-mail, odpowiedzi przyjdą na
+              kontakt@clauwi.pl. Wysłanej wiadomości nie można cofnąć.
+            </p>
+            {kind === "newsletter" && (
               <>
-                <h2>Wysłać wiadomość?</h2>
-                <p>
-                  „{draft.subject}” trafi do {people}
-                  {courseData && <> — uczestników kursu {courseData.course.name}</>}. Każdy dostanie osobny e-mail, odpowiedzi przyjdą na
-                  kontakt@clauwi.pl. Wysłanej wiadomości nie można cofnąć.
-                </p>
-                <div className="adm-confirm__foot">
-                  <button className="adm-btn adm-btn--ghost" onClick={() => setSending(null)}>Anuluj</button>
-                  <button className="adm-btn adm-btn--solid" onClick={() => send()}>Wyślij</button>
+                <div className="adm-compose__when">
+                  <label><input type="radio" checked={!scheduleAt} onChange={() => setScheduleAt("")} /> Wyślij teraz</label>
+                  <label>
+                    <input type="radio" checked={!!scheduleAt} onChange={() => setScheduleAt(inAnHour())} /> Zaplanuj na
+                    <input type="datetime-local" value={scheduleAt} onChange={(e) => setScheduleAt(e.target.value)} disabled={!scheduleAt} />
+                  </label>
                 </div>
-              </>
-            ) : sending.phase === "sending" ? (
-              <>
-                <h2>Wysyłanie…</h2>
-                <p>{sending.done} / {sending.total} — nie zamykaj tej strony.</p>
-              </>
-            ) : (
-              <>
-                <h2>{sending.failed.length === 0 ? "Wysłano" : "Wysłano z błędami"}</h2>
-                <p>
-                  Wysłano do {sending.sent} {plural(sending.sent, "osoby", "osób", "osób")}.
-                  {sending.failed.length > 0 && <> Nie udało się wysłać do: {sending.failed.join(", ")}.</>}
-                </p>
-                <div className="adm-confirm__foot">
-                  {sending.failedIds.length > 0 && (
-                    <button className="adm-btn adm-btn--ghost" onClick={() => send(sending.failedIds)}>
-                      Ponów dla nieudanych ({sending.failedIds.length})
-                    </button>
-                  )}
-                  <Link href={backHref} className="adm-btn adm-btn--solid">Wróć do kursów</Link>
-                </div>
+                {limits && (
+                  <p className="adm-compose__hint">
+                    Dzienny limit wysyłki to {limits.dailyLimit} wiadomości
+                    {limits.sentLast24h > 0 && <> (w ostatniej dobie wysłano już {limits.sentLast24h})</>}.{" "}
+                    {days > 1 ? (
+                      <>Wysyłka rozłoży się na ok. {days} dni — kolejne partie wyślą się same, także po zamknięciu tej strony. Najpierw dostaną ją osoby z najnowszą zgodą.</>
+                    ) : (
+                      <>Kolejne partie wyślą się same, także po zamknięciu tej strony.</>
+                    )}{" "}
+                    Limit można zmienić w zakładce „Wysyłki”.
+                  </p>
+                )}
               </>
             )}
+            {createFailed && <p className="adm-compose__warn">Nie udało się rozpocząć wysyłki. Spróbuj ponownie.</p>}
+            <div className="adm-confirm__foot">
+              <button className="adm-btn adm-btn--ghost" disabled={creating} onClick={() => setConfirming(false)}>Anuluj</button>
+              <button className="adm-btn adm-btn--solid" disabled={creating || (kind === "newsletter" && !!scheduleAt && new Date(scheduleAt) <= new Date())} onClick={send}>
+                {creating ? "Zapisywanie…" : kind === "newsletter" && scheduleAt ? "Zaplanuj" : "Wyślij"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -423,7 +480,7 @@ function Composer({ kind }: { kind: ComposerKind }) {
             <div className="adm-compose__who">
               {failed ? (
                 "Nie udało się wczytać odbiorcy."
-              ) : !preview ? (
+              ) : !view ? (
                 "Wczytywanie…"
               ) : total === 0 ? (
                 "Nikt nie pasuje do filtrów — podgląd na przykładowych danych."

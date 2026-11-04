@@ -94,6 +94,22 @@ export async function newsletterTokenFor(email: string): Promise<string> {
   return row!.token;
 }
 
+/** Unsubscribe tokens for many addresses at once (created where missing), keyed by lowercased address. */
+export async function newsletterTokensFor(emails: string[]): Promise<Map<string, string>> {
+  const DB = await db();
+  if (emails.length === 0) return new Map();
+  await DB.batch(
+    emails.map((email) => {
+      const bytes = crypto.getRandomValues(new Uint8Array(24));
+      const fresh = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      return DB.prepare("INSERT OR IGNORE INTO newsletter_tokens (token, email) VALUES (?, ?)").bind(fresh, email.trim());
+    }),
+  );
+  const { results } = await DB.prepare("SELECT token, email FROM newsletter_tokens WHERE email IN (SELECT value FROM json_each(?))")
+    .bind(JSON.stringify(emails.map((e) => e.trim()))).all<{ token: string; email: string }>();
+  return new Map((results ?? []).map((r) => [r.email.toLowerCase(), r.token]));
+}
+
 /** Who an unsubscribe token belongs to, and whether they're already unsubscribed. */
 export async function findNewsletterToken(token: string): Promise<{ email: string; suppressed: boolean } | null> {
   const DB = await db();
@@ -172,6 +188,44 @@ export async function adminListNewsletter(query: NewsletterQuery): Promise<Newsl
   };
 }
 
+// One row per address matching the filters (WHERE's ?1–?4): its most recent
+// matching course, and `latest` — its newest consent.
+const RECIPIENTS = `
+  SELECT * FROM (
+    SELECT *,
+           row_number() OVER (
+             PARTITION BY lower(email)
+             ORDER BY course_starts_at IS NULL, course_starts_at DESC, created_at DESC
+           ) AS rn,
+           max(created_at) OVER (PARTITION BY lower(email)) AS latest
+      FROM (${ENTRIES}) ${WHERE}
+  ) WHERE rn = 1`;
+
+/**
+ * Statement that queues everyone matching the filters as recipients of a
+ * mailing (see migrations/0018), each with their details frozen as JSON.
+ * Most recent consent goes first, so if a mailing to an old list is cut
+ * short, it's the people least likely to have forgotten us who got it.
+ */
+export async function queueNewsletterRecipientsStmt(mailingId: string, filters: NewsletterFilters): Promise<D1PreparedStatement> {
+  const DB = await db();
+  return DB.prepare(
+    `INSERT INTO mailing_recipients (mailing_id, email, data, ord)
+     SELECT ?5, email,
+            json_object(
+              'email', email,
+              'firstName', coalesce(first_name, ''),
+              'lastName', coalesce(last_name, ''),
+              'course', json(CASE WHEN course_id IS NULL THEN NULL ELSE json_object(
+                'name', course_name, 'type', coalesce(course_type, ''), 'location', coalesce(course_location, ''),
+                'startsAt', coalesce(course_starts_at, ''), 'endsAt', coalesce(course_ends_at, '')
+              ) END)
+            ),
+            row_number() OVER (ORDER BY latest DESC, lower(email))
+       FROM (${RECIPIENTS})`,
+  ).bind(...whereParams(filters), mailingId);
+}
+
 /**
  * The index-th person (by e-mail, alphabetically) a mailing with these
  * filters goes to, plus how many there are. One row per address; its course
@@ -184,16 +238,7 @@ export async function adminNewsletterRecipient(
   const DB = await db();
   const params = whereParams(filters);
   const [rows, counts] = await DB.batch<Record<string, string | number | null>>([
-    DB.prepare(
-      `SELECT * FROM (
-         SELECT *, row_number() OVER (
-           PARTITION BY lower(email)
-           ORDER BY course_starts_at IS NULL, course_starts_at DESC, created_at DESC
-         ) AS rn
-         FROM (${ENTRIES}) ${WHERE}
-       ) WHERE rn = 1
-       ORDER BY lower(email) LIMIT 1 OFFSET ?5`,
-    ).bind(...params, Math.max(0, Math.floor(index) || 0)),
+    DB.prepare(`${RECIPIENTS} ORDER BY lower(email) LIMIT 1 OFFSET ?5`).bind(...params, Math.max(0, Math.floor(index) || 0)),
     DB.prepare(`SELECT count(DISTINCT lower(email)) AS n FROM (${ENTRIES}) ${WHERE}`).bind(...params),
   ]);
   const r = rows.results?.[0];

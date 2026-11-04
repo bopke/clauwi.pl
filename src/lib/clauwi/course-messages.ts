@@ -6,11 +6,10 @@ import "server-only";
 // mailings they need no marketing consent and carry no unsubscribe link.
 
 import { adminListBookingsForCourse, getCourseById } from "./courses-repo";
-import { COURSE_MESSAGE_CHUNK, type Course, type CourseBooking } from "./courses";
+import type { Course, CourseBooking } from "./courses";
 import type { NewsletterRecipient } from "./newsletter";
-import { buildMessageEmail, type NewsletterDraft } from "./newsletter-template";
-import { emailBaseUrl, sendEmail } from "./brevo";
-import { CONTACT, SITE } from "./site";
+import type { NewsletterDraft } from "./newsletter-template";
+import { createCourseMailing } from "./mailings-repo";
 
 function toRecipient(b: CourseBooking, c: Course): NewsletterRecipient {
   return {
@@ -47,38 +46,27 @@ export async function courseMessageRecipients(
 }
 
 /**
- * Sends the message to the given participants (one chunk), each with their
- * own placeholders filled in. Replies go to the school's address. Returns
- * who it failed for, so the composer can report it.
+ * Records the message and its recipients (see mailings-repo.ts); sending
+ * then happens chunk by chunk from the mailing's page. Returns its id.
  */
-export async function sendCourseMessage(
+export async function createCourseMessage(
   courseId: string,
   bookingIds: string[],
   draft: NewsletterDraft,
-): Promise<{ sent: number; failed: string[] }> {
+  opts: { createdBy: string; baseUrl: string },
+): Promise<string> {
   if (!draft.subject.trim() || !draft.body.trim()) throw new Error("empty message");
-  const found = await courseMessageRecipients(courseId, bookingIds.slice(0, COURSE_MESSAGE_CHUNK));
-  if (!found) throw new Error("course not found");
-
-  const baseUrl = await emailBaseUrl();
-  let sent = 0;
-  const failed: string[] = [];
-  for (const r of found.recipients) {
-    const { subject, html, text } = buildMessageEmail(draft, r, { baseUrl });
-    try {
-      await sendEmail({
-        to: r.email,
-        toName: `${r.firstName} ${r.lastName}`.trim() || undefined,
-        subject,
-        html,
-        text,
-        replyTo: { email: CONTACT.email, name: SITE.name },
-      });
-      sent++;
-    } catch (e) {
-      console.error("course message failed to send", r.email, e);
-      failed.push(r.email);
-    }
-  }
-  return { sent, failed };
+  const found = await courseMessageRecipients(courseId, bookingIds);
+  if (!found || found.recipients.length === 0) throw new Error("no recipients");
+  const { course } = found;
+  return createCourseMailing(
+    {
+      kind: "course",
+      draft,
+      audience: `uczestnicy kursu ${course.name} (${course.startsAt.slice(0, 10).split("-").reverse().join(".")})`,
+      courseId,
+      ...opts,
+    },
+    found.recipients.map((recipient, i) => ({ bookingId: found.bookingIds[i], recipient })),
+  );
 }

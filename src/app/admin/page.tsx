@@ -20,6 +20,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   const u = session.user;
   // ?tab=newsletter — the newsletter composer links back to its tab.
-  const initialTab = sp.tab === "newsletter" || sp.tab === "kursy" || sp.tab === "dostep" ? sp.tab : undefined;
+  const initialTab = sp.tab === "newsletter" || sp.tab === "kursy" || sp.tab === "wysylki" || sp.tab === "dostep" ? sp.tab : undefined;
   return <AdminApp user={{ email: u.email!, name: u.name ?? null, image: u.image ?? null }} initialTab={initialTab} />;
 }

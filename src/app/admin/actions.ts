@@ -9,14 +9,20 @@ import {
   adminListBookingsForCourse, updateBookingStatus, removeBooking, adminGetBookingWithCourse,
   adminUpdateBooking, getCourseById as getCourse, adminUnseenBookingCounts, markCourseSeen,
 } from "@/lib/clauwi/courses-repo";
-import { sendBookingStatusEmail, sendBookingUpdatedEmail, sendBookingRemovedEmail } from "@/lib/clauwi/brevo";
+import { emailBaseUrl, sendBookingStatusEmail, sendBookingUpdatedEmail, sendBookingRemovedEmail, sendEmail } from "@/lib/clauwi/brevo";
 import { BOOKING_FIELD_LABELS } from "@/lib/clauwi/courses";
 import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus } from "@/lib/clauwi/courses";
 import type { BookingChange } from "@/lib/clauwi/email-templates/course-booking-updated";
 import { adminListNewsletter, adminListNewsletterCourses, adminNewsletterRecipient, adminRemoveFromNewsletter, consentHistory } from "@/lib/clauwi/newsletter-repo";
 import type { ConsentEntry } from "@/lib/clauwi/consent";
-import { courseMessageRecipients, sendCourseMessage } from "@/lib/clauwi/course-messages";
-import type { NewsletterDraft } from "@/lib/clauwi/newsletter-template";
+import { courseMessageRecipients, createCourseMessage } from "@/lib/clauwi/course-messages";
+import { buildMessageEmail, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
+import {
+  cancelMailing, createNewsletterMailing, getDailyLimit, getMailing, listMailingRecipients, mailingPreview, listMailings, pauseMailing,
+  processMailing, resumeMailing, retryFailed, sentLast24h, setDailyLimit, type ProcessResult,
+} from "@/lib/clauwi/mailings-repo";
+import type { Mailing, MailingRecipientRow, RecipientStatus } from "@/lib/clauwi/mailings";
+import { CONTACT, SITE } from "@/lib/clauwi/site";
 import type { NewsletterCourse, NewsletterFilters, NewsletterPage, NewsletterQuery, NewsletterRecipient } from "@/lib/clauwi/newsletter";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -256,12 +262,103 @@ export async function getCourseMessageAction(
   return courseMessageRecipients(courseId, bookingIds);
 }
 
-/** Sends one chunk (see COURSE_MESSAGE_CHUNK); the composer loops over the selection. */
-export async function sendCourseMessageAction(
-  courseId: string,
-  bookingIds: string[],
+/** Records the message; its page (/admin/wysylki/<id>) then sends it. */
+export async function createCourseMessageAction(courseId: string, bookingIds: string[], draft: NewsletterDraft): Promise<string> {
+  const me = await requireAdmin();
+  return createCourseMessage(courseId, bookingIds, draft, { createdBy: me, baseUrl: await emailBaseUrl() });
+}
+
+// ----- Mailings (sent-message log and queue) -----
+
+/**
+ * Queues a newsletter mailing to everyone matching the filters. `sendAfter`
+ * (UTC "YYYY-MM-DD HH:MM:SS") schedules it; the cron starts it then.
+ */
+export async function createNewsletterMailingAction(
+  filters: NewsletterFilters,
   draft: NewsletterDraft,
-): Promise<{ sent: number; failed: string[] }> {
+  audience: string,
+  sendAfter?: string,
+): Promise<string> {
+  const me = await requireAdmin();
+  if (!draft.subject.trim() || !draft.body.trim()) throw new Error("empty message");
+  if (sendAfter && !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(sendAfter)) throw new Error("bad date");
+  return createNewsletterMailing({
+    kind: "newsletter", draft, audience: audience.slice(0, 300), filters, sendAfter, createdBy: me, baseUrl: await emailBaseUrl(),
+  });
+}
+
+export async function getMailingsAction(): Promise<Mailing[]> {
   await requireAdmin();
-  return sendCourseMessage(courseId, bookingIds, draft);
+  return listMailings();
+}
+
+export async function getMailingAction(id: string): Promise<Mailing | null> {
+  await requireAdmin();
+  return getMailing(id);
+}
+
+export async function getMailingRecipientsAction(
+  id: string,
+  opts: { page: number; status: RecipientStatus | ""; q: string },
+): Promise<{ rows: MailingRecipientRow[]; total: number }> {
+  await requireAdmin();
+  return listMailingRecipients(id, opts);
+}
+
+export async function getMailingPreviewAction(id: string): Promise<{ html: string; subject: string; email: string } | null> {
+  await requireAdmin();
+  return mailingPreview(id);
+}
+
+/** Sends the next chunk — the mailing's page calls this while it's open. */
+export async function processMailingAction(id: string): Promise<ProcessResult> {
+  await requireAdmin();
+  return processMailing(id);
+}
+
+export async function mailingControlAction(id: string, action: "pause" | "resume" | "cancel" | "retry"): Promise<void> {
+  await requireAdmin();
+  if (action === "pause") await pauseMailing(id);
+  else if (action === "resume") await resumeMailing(id);
+  else if (action === "cancel") await cancelMailing(id);
+  else await retryFailed(id);
+}
+
+export async function getSendingSettingsAction(): Promise<{ dailyLimit: number; sentLast24h: number }> {
+  await requireAdmin();
+  const [dailyLimit, sent] = await Promise.all([getDailyLimit(), sentLast24h()]);
+  return { dailyLimit, sentLast24h: sent };
+}
+
+export async function setDailyLimitAction(n: number): Promise<void> {
+  await requireAdmin();
+  await setDailyLimit(n);
+}
+
+/** The signed-in administrator's address — the default for test sends. */
+export async function getMeAction(): Promise<string> {
+  return requireAdmin();
+}
+
+/**
+ * Sends the draft, as rendered for the previewed recipient, to one address —
+ * to check it in a real inbox. Not logged as a mailing.
+ */
+export async function sendTestAction(
+  kind: "newsletter" | "course",
+  draft: NewsletterDraft,
+  recipient: NewsletterRecipient,
+  to: string,
+): Promise<void> {
+  await requireAdmin();
+  const address = to.trim();
+  if (!EMAIL_RE.test(address)) throw new Error("Invalid email");
+  const baseUrl = await emailBaseUrl();
+  const { subject, html, text } = buildMessageEmail(
+    draft,
+    recipient,
+    kind === "newsletter" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "test") } : { baseUrl },
+  );
+  await sendEmail({ to: address, subject: `[TEST] ${subject}`, html, text, replyTo: { email: CONTACT.email, name: SITE.name } });
 }
