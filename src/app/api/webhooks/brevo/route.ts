@@ -1,5 +1,7 @@
 // Brevo webhook: unsubscribes, spam complaints and hard bounces reported by
 // Brevo become newsletter suppressions, so our list and Brevo's agree.
+// Bounces and complaints are also marked on the mailing they came from, which
+// pauses a newsletter mailing that's going badly (mailings-repo.ts).
 //
 // Needed because Brevo adds its own List-Unsubscribe header to everything it
 // sends — the inbox "Unsubscribe" button goes to Brevo, not to us. This file
@@ -13,6 +15,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextResponse } from "next/server";
 import { suppressNewsletterEmail, type SuppressionReason } from "@/lib/clauwi/newsletter-repo";
+import { recordProviderEvent } from "@/lib/clauwi/mailings-repo";
 
 // Event names differ between Brevo's transactional and marketing webhooks.
 const REASONS: Record<string, SuppressionReason> = {
@@ -56,6 +59,8 @@ export async function POST(req: Request) {
     const reason = e?.event ? REASONS[e.event] : undefined;
     if (reason && typeof e.email === "string" && e.email.includes("@")) {
       await suppressNewsletterEmail(e.email, reason);
+      if (reason === "provider-bounce") await recordProviderEvent(e.email, "bounced");
+      if (reason === "provider-spam") await recordProviderEvent(e.email, "complained");
     }
   }
   // Brevo retries on non-2xx — events we don't act on are still "handled".
