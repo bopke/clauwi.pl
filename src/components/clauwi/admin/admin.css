@@ -236,6 +236,8 @@
 /* ClauWi advisors have one free-text "poziom" (level), not multi-tone statuses. */
 .adm-statusbadge--level { background: #f3e2dd; color: var(--green-d); }
 .adm-statusbadge--inactive { background: #f1efe6; color: var(--ink-soft); }
+.adm-statusbadge--expired { background: #f6e1d6; color: var(--danger); }
+.adm-statusbadge--soon { background: var(--cream); color: #8a6d1f; }
 .adm-name-cell { display: inline-flex; align-items: center; gap: 7px; }
 .adm-tick { color: var(--green); display: inline-flex; }
 
@@ -436,3 +438,46 @@ button.adm-chip.is-on { border-color: currentColor; }
 .adm-auto__saved { color: var(--green-d); font-weight: 700; font-size: 14px; }
 .adm-auto__sends td { padding: 6px 8px; font-size: 13px; }
 .adm-auto__foot span:last-child { white-space: nowrap; }
+
+/* ---------- Advisors: selection, mass actions, cards on phones ---------- */
+.adm-td-check { width: 1%; padding-right: 0 !important; }
+.adm-td-check input { width: 18px; height: 18px; accent-color: var(--green-d); cursor: pointer; vertical-align: middle; }
+.adm-advtable__all { display: none; }
+.adm-table tbody tr.is-picked td { background: #f4f1e4; }
+.adm-bulkbar { position: sticky; bottom: 16px; z-index: 20; margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 12px 16px; background: #fff; border: 1.5px solid var(--sage); border-radius: 16px; box-shadow: 0 12px 34px rgba(86,84,60,.2); }
+.adm-bulkbar__count { font-family: "Quicksand", sans-serif; font-weight: 600; color: var(--ink); }
+.adm-bulkbar__count small { color: var(--ink-soft); font-weight: 500; }
+.adm-bulkbar__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.adm-bulkbar .adm-btn { padding: 9px 14px; }
+.adm-confirm .adm-f input { width: 100%; }
+
+@media (max-width: 680px) {
+  /* Each advisor becomes a card: checkbox on the left, the actions on the
+     right, always in reach without scrolling the table sideways. */
+  .adm-table.adm-advtable { min-width: 0; }
+  .adm-advtable, .adm-advtable tbody { display: block; }
+  .adm-advtable thead { display: block; background: #faf8f1; border-bottom: 1.5px solid var(--line); }
+  .adm-advtable thead tr { display: block; }
+  .adm-advtable thead th { display: none; }
+  .adm-table.adm-advtable thead th.adm-td-check { display: block; width: auto; padding: 12px 14px; border: none; }
+  .adm-advtable thead label { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .adm-advtable__all { display: inline; }
+  .adm-advtable tbody tr { display: grid; grid-template-columns: auto 1fr auto; column-gap: 12px; row-gap: 4px; padding: 14px; border-bottom: 1px solid var(--line); }
+  .adm-advtable tbody tr:last-child { border-bottom: none; }
+  .adm-table.adm-advtable td { display: block; padding: 0; border: none; }
+  .adm-table.adm-advtable td.adm-td-check { grid-column: 1; grid-row: 1 / span 4; padding-top: 2px; }
+  .adm-table.adm-advtable td.adm-td-act { grid-column: 3; grid-row: 1 / span 4; align-self: start; display: flex; flex-direction: column; gap: 8px; }
+  .adm-table.adm-advtable td.adm-td-act .adm-iconbtn { width: 42px; height: 42px; margin: 0; }
+  .adm-table.adm-advtable td:not(.adm-td-check):not(.adm-td-act) { grid-column: 2; }
+  .adm-table.adm-advtable td.adm-td-addr { display: none; }
+  .adm-table.adm-advtable td.adm-td-valid { display: block; font-size: 13px; }
+  .adm-table.adm-advtable td.adm-td-valid:empty { display: none; }
+  .adm-table.adm-advtable td.adm-empty { grid-column: 1 / -1; padding: 30px 0; }
+  /* Colour the whole card, not the separate cells. */
+  .adm-table.adm-advtable tbody tr td { background: transparent; }
+  .adm-advtable tbody tr.is-picked { background: #f4f1e4; }
+  .adm-bulkbar { bottom: 10px; padding: 10px 12px; }
+  .adm-bulkbar__actions { margin-left: 0; width: 100%; }
+  .adm-bulkbar__actions .adm-btn { flex: 1 1 auto; }
+  .adm-bulkbar__actions .adm-btn--danger { flex: 0 0 auto; }
+}

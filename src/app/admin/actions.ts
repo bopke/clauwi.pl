@@ -2,7 +2,7 @@
 
 import { auth, signIn, signOut } from "@/auth";
 import { addAllow, listAllow, removeAllow } from "@/lib/clauwi/allowlist";
-import { adminListAdvisors, createAdvisor, getAdvisorById, removeAdvisor, updateAdvisor } from "@/lib/clauwi/advisors-repo";
+import { adminListAdvisors, bulkRemoveAdvisors, bulkUpdateAdvisors, createAdvisor, getAdvisorById, removeAdvisor, updateAdvisor, type AdvisorBulkPatch } from "@/lib/clauwi/advisors-repo";
 import type { AllowEntry, Advisor } from "@/lib/clauwi/advisors";
 import {
   adminListCourses, createCourse, getCourseById, removeCourse, updateCourse,
@@ -93,6 +93,26 @@ export async function deleteAdvisorAction(id: string): Promise<void> {
   const existing = await getAdvisorById(id);
   if (!existing) return;
   await removeAdvisor(id);
+}
+
+const BULK_MAX = 1000;
+
+function bulkIds(ids: unknown): string[] {
+  if (!Array.isArray(ids)) throw new Error("ids");
+  return [...new Set(ids.filter((x): x is string => typeof x === "string" && x.length > 0))].slice(0, BULK_MAX);
+}
+
+export async function bulkUpdateAdvisorsAction(ids: string[], patch: AdvisorBulkPatch): Promise<void> {
+  await requireAdmin();
+  const clean: AdvisorBulkPatch = {};
+  if (typeof patch.active === "boolean") clean.active = patch.active;
+  if (typeof patch.certificationValidUntil === "string") clean.certificationValidUntil = patch.certificationValidUntil.trim().slice(0, 100);
+  await bulkUpdateAdvisors(bulkIds(ids), clean);
+}
+
+export async function bulkDeleteAdvisorsAction(ids: string[]): Promise<void> {
+  await requireAdmin();
+  await bulkRemoveAdvisors(bulkIds(ids));
 }
 
 // ----- Course CRUD (D1) -----

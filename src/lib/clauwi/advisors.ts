@@ -85,3 +85,24 @@ export function websiteItems(website: string): WebsiteItem[] {
   }
   return items;
 }
+
+/**
+ * "Ważność uprawnień" is free text; this reads the usual ways of writing a
+ * date (2027-05-01, 2027-05, 01.05.2027, 05.2027, 05/2027, 2027) and returns
+ * the last day it is valid as "YYYY-MM-DD" — the end of the month or year
+ * when no day is given — or null when it isn't a date.
+ */
+export function validUntilDate(text: string): string | null {
+  const s = text.trim();
+  let m: RegExpMatchArray | null;
+  let y: number, mo: number, d: number | null = null;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?$/))) [y, mo, d] = [+m[1], +m[2], m[3] ? +m[3] : null];
+  else if ((m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/))) [y, mo, d] = [+m[3], +m[2], +m[1]];
+  else if ((m = s.match(/^(\d{1,2})[./](\d{4})$/))) [y, mo] = [+m[2], +m[1]];
+  else if ((m = s.match(/^(\d{4})$/))) [y, mo] = [+m[1], 12];
+  else return null;
+  if (mo < 1 || mo > 12) return null;
+  const last = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  if (d !== null && (d < 1 || d > last)) return null;
+  return `${y}-${String(mo).padStart(2, "0")}-${String(d ?? last).padStart(2, "0")}`;
+}

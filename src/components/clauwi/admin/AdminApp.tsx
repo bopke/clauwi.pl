@@ -7,10 +7,10 @@
 // — none of easybaby's multi-status, multi-region or photo upload.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AdvisorUtil, LEVEL_SUGGESTIONS, REGION_META, websiteItems } from "@/lib/clauwi/advisors";
+import { AdvisorUtil, LEVEL_SUGGESTIONS, REGION_META, validUntilDate, websiteItems } from "@/lib/clauwi/advisors";
 import type { Advisor, AllowEntry } from "@/lib/clauwi/advisors";
 import {
-  addAllowAction, createAdvisorAction, deleteAdvisorAction, getAdvisorsAdminAction,
+  addAllowAction, bulkDeleteAdvisorsAction, bulkUpdateAdvisorsAction, createAdvisorAction, deleteAdvisorAction, getAdvisorsAdminAction,
   getAllowlistAction, removeAllowAction, signOutAction, updateAdvisorAction, getUnseenBookingCountsAction,
 } from "@/app/admin/actions";
 import { CoursesTab } from "./CoursesTab";
@@ -157,13 +157,62 @@ function Confirm({ title, text, confirmLabel, onConfirm, onClose }: { title: str
 }
 
 // ====== Tab: advisors ======
+type AdvisorSort = "name" | "valid-asc" | "valid-desc";
+const SOON_DAYS = 60;
+
+function todayIso(): string {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Warsaw" });
+}
+
+function addDays(iso: string, days: number): string {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function ValidityBadge({ text }: { text: string }) {
+  const date = validUntilDate(text);
+  if (!date) return null;
+  const today = todayIso();
+  if (date < today) return <span className="adm-statusbadge adm-statusbadge--expired">wygasła</span>;
+  if (date <= addDays(today, SOON_DAYS)) return <span className="adm-statusbadge adm-statusbadge--soon">wygasa wkrótce</span>;
+  return null;
+}
+
+/** Sets one "Ważność uprawnień" for all selected advisors. */
+function BulkValidityForm({ count, onSave, onClose }: { count: number; onSave: (value: string) => void; onClose: () => void }) {
+  const [value, setValue] = useState("");
+  const parsed = value.trim() ? validUntilDate(value) : null;
+  return (
+    <div className="adm-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <form className="adm-confirm" onSubmit={(e) => { e.preventDefault(); onSave(value.trim()); }}>
+        <h2>Ustaw ważność uprawnień</h2>
+        <p>Nowa wartość zastąpi obecną u {count} {count === 1 ? "zaznaczonego doradcy" : "zaznaczonych doradców"}. Puste pole usuwa datę.</p>
+        <label className="adm-f">
+          <span>Ważność uprawnień</span>
+          <input autoFocus value={value} onChange={(e) => setValue(e.target.value)} placeholder="np. 2027-05-01" />
+        </label>
+        {value.trim() && !parsed && <p className="adm-compose__hint">To nie wygląda na datę — zostanie zapisane jako tekst i nie będzie brane pod uwagę przy sortowaniu.</p>}
+        <div className="adm-confirm__foot">
+          <button type="button" className="adm-btn adm-btn--ghost" onClick={onClose}>Anuluj</button>
+          <button type="submit" className="adm-btn adm-btn--solid">Zapisz</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
   const [advisors, setAdvisors] = useState<Advisor[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [region, setRegion] = useState("");
+  const [sort, setSort] = useState<AdvisorSort>("name");
   const [editing, setEditing] = useState<Editing>(null);
   const [delTarget, setDelTarget] = useState<Advisor | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [bulk, setBulk] = useState<"validity" | "delete" | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     try { setAdvisors(await getAdvisorsAdminAction()); } finally { setLoading(false); }
@@ -176,9 +225,41 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
     const qq = q.trim().toLowerCase();
     if (qq) arr = arr.filter((a) => a.name.toLowerCase().includes(qq) || a.locality.toLowerCase().includes(qq));
     if (region) arr = arr.filter((a) => a.region === region);
-    arr.sort((x, y) => coll.compare(x.name, y.name));
+    if (sort === "name") {
+      arr.sort((x, y) => coll.compare(x.name, y.name));
+    } else {
+      // Advisors without a readable date go last either way.
+      const dir = sort === "valid-asc" ? 1 : -1;
+      const keyed = arr.map((a) => ({ a, d: validUntilDate(a.certificationValidUntil) }));
+      keyed.sort((x, y) => {
+        if (x.d && y.d) return x.d === y.d ? coll.compare(x.a.name, y.a.name) : (x.d < y.d ? -dir : dir);
+        if (x.d || y.d) return x.d ? -1 : 1;
+        return coll.compare(x.a.name, y.a.name);
+      });
+      arr = keyed.map((k) => k.a);
+    }
     return arr;
-  }, [advisors, q, region]);
+  }, [advisors, q, region, sort]);
+
+  // Only advisors that still exist count as picked.
+  const pickedIds = useMemo(() => advisors.filter((a) => picked.has(a.id)).map((a) => a.id), [advisors, picked]);
+  const hiddenPicked = pickedIds.length - view.filter((a) => picked.has(a.id)).length;
+  const allVisiblePicked = view.length > 0 && view.every((a) => picked.has(a.id));
+
+  function togglePick(id: string) {
+    setPicked((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  }
+  function toggleAllVisible() {
+    setPicked((s) => {
+      const n = new Set(s);
+      if (allVisiblePicked) view.forEach((a) => n.delete(a.id)); else view.forEach((a) => n.add(a.id));
+      return n;
+    });
+  }
 
   async function save(data: AdvisorDraft) {
     try {
@@ -208,6 +289,24 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
     }
   }
 
+  async function runBulk(label: string, fn: () => Promise<void>, clear = false) {
+    setBusy(true);
+    try {
+      await fn();
+      toast(label);
+      if (clear) setPicked(new Set());
+    } catch {
+      toast("Nie udało się wykonać operacji.");
+    } finally {
+      setBusy(false);
+      setBulk(null);
+      await refresh();
+    }
+  }
+  const n = pickedIds.length;
+  // Masculine-personal plural: "1 doradcę", but "2 / 5 / 22 doradców".
+  const nWord = (k: number) => (k === 1 ? "doradcę" : "doradców");
+
   return (
     <div>
       <div className="adm-toolbar">
@@ -219,18 +318,34 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
           <option value="">Wszystkie województwa</option>
           {REGION_META.map((m) => <option key={m.slug} value={m.slug}>{m.name}</option>)}
         </select>
+        <select className="adm-select" value={sort} onChange={(e) => setSort(e.target.value as AdvisorSort)} aria-label="Sortowanie">
+          <option value="name">Sortuj: nazwisko A–Z</option>
+          <option value="valid-asc">Sortuj: ważność — najwcześniej wygasające</option>
+          <option value="valid-desc">Sortuj: ważność — najpóźniej wygasające</option>
+        </select>
         <span className="adm-count">{view.length} z {advisors.length}</span>
         <button className="adm-btn adm-btn--solid" onClick={() => setEditing("new")}>+ Dodaj doradcę</button>
       </div>
 
       <div className="adm-tablewrap">
-        <table className="adm-table">
+        <table className="adm-table adm-advtable">
           <thead>
-            <tr><th>Doradca</th><th>Poziom</th><th>Województwo / miejscowość</th><th>Kontakt</th><th>Ważność / uwagi</th><th className="adm-th-act">Akcje</th></tr>
+            <tr>
+              <th className="adm-td-check">
+                <label>
+                  <input type="checkbox" checked={allVisiblePicked} onChange={toggleAllVisible} disabled={view.length === 0} aria-label="Zaznacz wszystkich widocznych" />
+                  <span className="adm-advtable__all">Zaznacz wszystkich widocznych</span>
+                </label>
+              </th>
+              <th>Doradca</th><th>Poziom</th><th>Województwo / miejscowość</th><th>Kontakt</th><th>Ważność / uwagi</th><th className="adm-th-act">Akcje</th>
+            </tr>
           </thead>
           <tbody>
             {view.map((a) => (
-              <tr key={a.id}>
+              <tr key={a.id} className={picked.has(a.id) ? "is-picked" : undefined}>
+                <td className="adm-td-check">
+                  <input type="checkbox" checked={picked.has(a.id)} onChange={() => togglePick(a.id)} aria-label={"Zaznacz: " + a.name} />
+                </td>
                 <td className="adm-td-name">
                   <span className="adm-name-cell">
                     {a.name}
@@ -238,7 +353,7 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
                   </span>
                   {!a.active && <div><span className="adm-statusbadge adm-statusbadge--inactive">nieaktywny</span></div>}
                 </td>
-                <td>{a.level && <span className="adm-statusbadge adm-statusbadge--level">{a.level}</span>}</td>
+                <td className="adm-td-level">{a.level && <span className="adm-statusbadge adm-statusbadge--level">{a.level}</span>}</td>
                 <td className="adm-td-regions">
                   <span className="adm-regchip"><b>{regionName(a.region)}</b>{a.locality ? ": " + a.locality : ""}</span>
                 </td>
@@ -249,26 +364,42 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
                     <div key={i}>{w.href ? <a href={w.href} title={w.title} target="_blank" rel="noopener" className="adm-link">{w.text}</a> : w.text}</div>
                   ))}
                 </td>
-                <td className="adm-td-addr">
-                  {a.certificationValidUntil && <div>Ważność: {a.certificationValidUntil}</div>}
+                <td className="adm-td-addr adm-td-valid">
+                  {a.certificationValidUntil && <div>Ważność: {a.certificationValidUntil} <ValidityBadge text={a.certificationValidUntil} /></div>}
                   {a.notes && <div>{a.notes}</div>}
                 </td>
                 <td className="adm-td-act">
-                  <button className="adm-iconbtn" title="Edytuj" onClick={() => setEditing(a)}>
+                  <button className="adm-iconbtn" title="Edytuj" aria-label={"Edytuj: " + a.name} onClick={() => setEditing(a)}>
                     <svg viewBox="0 0 24 24" width="17" height="17"><path d="M4 20h4l10-10-4-4L4 16v4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="M14 6l4 4" stroke="currentColor" strokeWidth="2" /></svg>
                   </button>
-                  <button className="adm-iconbtn adm-iconbtn--danger" title="Usuń" onClick={() => setDelTarget(a)}>
+                  <button className="adm-iconbtn adm-iconbtn--danger" title="Usuń" aria-label={"Usuń: " + a.name} onClick={() => setDelTarget(a)}>
                     <TrashIcon />
                   </button>
                 </td>
               </tr>
             ))}
             {view.length === 0 && (
-              <tr><td colSpan={6} className="adm-empty">{loading ? "Wczytywanie…" : "Brak doradców dla podanych kryteriów."}</td></tr>
+              <tr><td colSpan={7} className="adm-empty">{loading ? "Wczytywanie…" : "Brak doradców dla podanych kryteriów."}</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {n > 0 && (
+        <div className="adm-bulkbar" role="region" aria-label="Akcje dla zaznaczonych">
+          <span className="adm-bulkbar__count">
+            Zaznaczono: <b>{n}</b>
+            {hiddenPicked > 0 && <small> (w tym {hiddenPicked} ukrytych przez filtr)</small>}
+          </span>
+          <div className="adm-bulkbar__actions">
+            <button className="adm-btn adm-btn--ghost" disabled={busy} onClick={() => runBulk(`Aktywowano ${n} ${nWord(n)}.`, () => bulkUpdateAdvisorsAction(pickedIds, { active: true }))}>Aktywuj</button>
+            <button className="adm-btn adm-btn--ghost" disabled={busy} onClick={() => runBulk(`Dezaktywowano ${n} ${nWord(n)}.`, () => bulkUpdateAdvisorsAction(pickedIds, { active: false }))}>Dezaktywuj</button>
+            <button className="adm-btn adm-btn--ghost" disabled={busy} onClick={() => setBulk("validity")}>Ustaw ważność…</button>
+            <button className="adm-btn adm-btn--danger" disabled={busy} onClick={() => setBulk("delete")}>Usuń…</button>
+            <button className="adm-linkbtn" disabled={busy} onClick={() => setPicked(new Set())}>Odznacz</button>
+          </div>
+        </div>
+      )}
 
       {editing && <AdvisorForm initial={editing === "new" ? null : editing} onSave={save} onClose={() => setEditing(null)} />}
       {delTarget && (
@@ -278,6 +409,22 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
           confirmLabel="Usuń"
           onConfirm={doDelete}
           onClose={() => setDelTarget(null)}
+        />
+      )}
+      {bulk === "validity" && (
+        <BulkValidityForm
+          count={n}
+          onSave={(value) => runBulk(`Zapisano ważność u ${n} ${nWord(n)}.`, () => bulkUpdateAdvisorsAction(pickedIds, { certificationValidUntil: value }))}
+          onClose={() => setBulk(null)}
+        />
+      )}
+      {bulk === "delete" && (
+        <Confirm
+          title={`Usunąć ${n} ${nWord(n)}?`}
+          text={`Zaznaczeni doradcy (${n}) zostaną trwale usunięci${hiddenPicked > 0 ? `, w tym ${hiddenPicked} niewidocznych teraz przez filtr` : ""}. Tej operacji nie można cofnąć. Jeśli chcesz ich tylko ukryć z publicznej listy, użyj „Dezaktywuj”.`}
+          confirmLabel={`Usuń (${n})`}
+          onConfirm={() => runBulk(`Usunięto ${n} ${nWord(n)}.`, () => bulkDeleteAdvisorsAction(pickedIds), true)}
+          onClose={() => setBulk(null)}
         />
       )}
     </div>

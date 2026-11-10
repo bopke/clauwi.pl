@@ -145,3 +145,23 @@ export async function removeAdvisor(id: string): Promise<void> {
   const DB = await db();
   await DB.prepare("DELETE FROM advisors WHERE id = ?").bind(id).run();
 }
+
+/** One change applied to many advisors at once (the admin's mass actions). */
+export type AdvisorBulkPatch = { active?: boolean; certificationValidUntil?: string };
+
+export async function bulkUpdateAdvisors(ids: string[], patch: AdvisorBulkPatch): Promise<void> {
+  const DB = await db();
+  const sets: string[] = [];
+  const binds: (string | number)[] = [];
+  if (patch.active !== undefined) { sets.push("active = ?"); binds.push(patch.active ? 1 : 0); }
+  if (patch.certificationValidUntil !== undefined) { sets.push("certification_valid_until = ?"); binds.push(patch.certificationValidUntil); }
+  if (!sets.length || !ids.length) return;
+  await DB.prepare(`UPDATE advisors SET ${sets.join(", ")} WHERE id IN (SELECT value FROM json_each(?))`)
+    .bind(...binds, JSON.stringify(ids)).run();
+}
+
+export async function bulkRemoveAdvisors(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  const DB = await db();
+  await DB.prepare("DELETE FROM advisors WHERE id IN (SELECT value FROM json_each(?))").bind(JSON.stringify(ids)).run();
+}
