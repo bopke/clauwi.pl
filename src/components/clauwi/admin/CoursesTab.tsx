@@ -26,11 +26,16 @@ function toLocalInputValue(sqlDatetime: string): string {
   return sqlDatetime.replace(" ", "T").slice(0, 16);
 }
 function fromLocalInputValue(local: string): string {
-  return local.replace("T", " ") + ":00";
+  return local ? local.replace("T", " ") + ":00" : "";
 }
 
 type CourseDraft = Omit<Course, "id"> & { id?: string };
-type Editing = Course | "new" | null;
+/** "copy" opens the new-course form filled in from another course. */
+type Editing = Course | "new" | { copyOf: Course } | null;
+
+function withoutId({ id: _id, ...rest }: Course): CourseDraft { // eslint-disable-line @typescript-eslint/no-unused-vars
+  return rest;
+}
 
 const EMPTY: CourseDraft = {
   name: "", type: TYPE_SUGGESTIONS[0], location: "", description: "", price: 0, capacity: 10,
@@ -39,8 +44,14 @@ const EMPTY: CourseDraft = {
   active: true,
 };
 
-function CourseForm({ initial, onSave, onClose }: { initial: Course | null; onSave: (d: CourseDraft) => void; onClose: () => void }) {
-  const [f, setF] = useState<CourseDraft>(initial ? { ...EMPTY, ...initial } : EMPTY);
+function CourseForm({ initial, copyOf, onSave, onClose }: { initial: Course | null; copyOf?: Course; onSave: (d: CourseDraft) => void; onClose: () => void }) {
+  // A copy takes everything but the id and the dates; participants stay with
+  // the original course.
+  const [f, setF] = useState<CourseDraft>(
+    initial ? { ...EMPTY, ...initial }
+      : copyOf ? { ...EMPTY, ...withoutId(copyOf), startsAt: "", endsAt: "" }
+      : EMPTY,
+  );
   const [err, setErr] = useState<Record<string, number>>({});
 
   function set<K extends keyof CourseDraft>(k: K, v: CourseDraft[K]) { setF((s) => ({ ...s, [k]: v })); }
@@ -60,10 +71,15 @@ function CourseForm({ initial, onSave, onClose }: { initial: Course | null; onSa
     <div className="adm-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <form className="adm-sheet" onSubmit={submit}>
         <div className="adm-sheet__head">
-          <h2>{initial ? "Edytuj kurs" : "Nowy kurs"}</h2>
+          <h2>{initial ? "Edytuj kurs" : copyOf ? "Nowy kurs — kopia" : "Nowy kurs"}</h2>
           <button type="button" className="adm-x" onClick={onClose} aria-label="Zamknij">×</button>
         </div>
         <div className="adm-sheet__body">
+          {copyOf && (
+            <p className="adm-compose__hint">
+              Dane skopiowane z kursu „{copyOf.name}” ({copyOf.startsAt.slice(0, 10)}). Ustaw nowy termin — lista uczestników nie jest kopiowana.
+            </p>
+          )}
           <label className={"adm-f" + (err.name ? " is-err" : "")}>
             <span>Nazwa</span>
             <input value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="np. kurs podstawowy WARSZAWA" />
@@ -511,7 +527,7 @@ export function CoursesTab({ toast, onUnseenChange }: { toast: (m: string) => vo
 
   async function save(data: CourseDraft) {
     try {
-      if (editing && editing !== "new") {
+      if (editing && editing !== "new" && !("copyOf" in editing)) {
         await updateCourseAction({ ...editing, ...data, id: editing.id });
         toast("Zapisano zmiany dla " + data.name);
       } else {
@@ -576,6 +592,9 @@ export function CoursesTab({ toast, onUnseenChange }: { toast: (m: string) => vo
                   <button className="adm-iconbtn" title="Edytuj" onClick={() => setEditing(c)}>
                     <svg viewBox="0 0 24 24" width="17" height="17"><path d="M4 20h4l10-10-4-4L4 16v4z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" /><path d="M14 6l4 4" stroke="currentColor" strokeWidth="2" /></svg>
                   </button>
+                  <button className="adm-iconbtn" title="Duplikuj — nowy kurs z tymi samymi danymi" onClick={() => setEditing({ copyOf: c })}>
+                    <svg viewBox="0 0 24 24" width="17" height="17"><rect x="8" y="8" width="12" height="12" rx="2" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
+                  </button>
                   <button className="adm-iconbtn adm-iconbtn--danger" title="Usuń" onClick={() => setDelTarget(c)}>
                     <TrashIcon />
                   </button>
@@ -589,7 +608,14 @@ export function CoursesTab({ toast, onUnseenChange }: { toast: (m: string) => vo
         </table>
       </div>
 
-      {editing && <CourseForm initial={editing === "new" ? null : editing} onSave={save} onClose={() => setEditing(null)} />}
+      {editing && (
+        <CourseForm
+          initial={editing === "new" || "copyOf" in editing ? null : editing}
+          copyOf={editing !== "new" && "copyOf" in editing ? editing.copyOf : undefined}
+          onSave={save}
+          onClose={() => setEditing(null)}
+        />
+      )}
       {bookingsFor && <BookingsPanel course={bookingsFor} onClose={() => { setBookingsFor(null); refreshUnseen(); }} toast={toast} />}
       {delTarget && (
         <Confirm
