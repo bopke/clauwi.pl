@@ -43,10 +43,14 @@ export function AdvisorSearchTable({ items }: { items: Advisor[] }) {
       </p>
 
       {filtered.length > 0 && (
-        <div className="mt-4 overflow-x-auto">
+        // The header row sticks to the top while scrolling. A sticky element
+        // only sticks inside its nearest scroll box, so on wide screens the
+        // wrapper doesn't scroll (the page does); on phones, where the table
+        // needs sideways scrolling, the wrapper scrolls both ways instead.
+        <div className="mt-4 max-h-[75svh] overflow-auto md:max-h-none md:overflow-visible">
           <table className="w-full min-w-[720px] border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-border text-left uppercase tracking-wide text-ink/50">
+            <thead className="sticky top-0 z-10 bg-white shadow-[inset_0_-1px_0_var(--color-border)]">
+              <tr className="text-left uppercase tracking-wide text-ink/50">
                 <th className="py-3 pr-4">Doradca</th>
                 <th className="py-3 pr-4">Poziom</th>
                 <th className="py-3 pr-4">Miejscowość</th>
@@ -65,7 +69,7 @@ export function AdvisorSearchTable({ items }: { items: Advisor[] }) {
                   <td className="py-3 pr-4 text-ink/75">
                     {a.email && <a href={`mailto:${a.email}`} className="hover:text-brand">{a.email}</a>}
                   </td>
-                  <td className="py-3 pr-4 text-ink/75">{a.website}</td>
+                  <td className="min-w-[10rem] py-3 pr-4 text-ink/75 [overflow-wrap:anywhere]">{a.website}</td>
                   <td className="py-3 pr-4 text-ink/75">{a.phone}</td>
                   <td className="py-3 pr-4 text-ink/75">{a.services}</td>
                 </tr>
