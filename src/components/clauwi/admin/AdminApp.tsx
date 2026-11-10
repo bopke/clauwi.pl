@@ -7,7 +7,7 @@
 // — none of easybaby's multi-status, multi-region or photo upload.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AdvisorUtil, LEVEL_SUGGESTIONS, REGION_META } from "@/lib/clauwi/advisors";
+import { AdvisorUtil, LEVEL_SUGGESTIONS, REGION_META, websiteItems } from "@/lib/clauwi/advisors";
 import type { Advisor, AllowEntry } from "@/lib/clauwi/advisors";
 import {
   addAllowAction, createAdvisorAction, deleteAdvisorAction, getAdvisorsAdminAction,
@@ -111,8 +111,8 @@ function AdvisorForm({ initial, onSave, onClose }: { initial: Advisor | null; on
           </div>
 
           <label className="adm-f">
-            <span>Strona WWW <small>(opcjonalnie — adres strony lub np. „Fb: nazwa profilu”)</small></span>
-            <input value={f.website} onChange={(e) => set("website", e.target.value)} placeholder="np. www.annakowalska.pl" />
+            <span>Strona WWW <small>(opcjonalnie — adres strony lub np. „Fb: nazwa profilu”; kilka adresów: każdy w osobnej linii)</small></span>
+            <textarea rows={2} value={f.website} onChange={(e) => set("website", e.target.value)} placeholder={"np. www.annakowalska.pl\nfacebook.com/annakowalska"} />
           </label>
 
           <label className="adm-f">
@@ -245,7 +245,9 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
                 <td className="adm-td-addr">
                   {a.email && <div>{a.email}</div>}
                   {a.phone && <div>{a.phone}</div>}
-                  {a.website && <div>{a.website}</div>}
+                  {websiteItems(a.website).map((w, i) => (
+                    <div key={i}>{w.href ? <a href={w.href} title={w.title} target="_blank" rel="noopener" className="adm-link">{w.text}</a> : w.text}</div>
+                  ))}
                 </td>
                 <td className="adm-td-addr">
                   {a.certificationValidUntil && <div>Ważność: {a.certificationValidUntil}</div>}

@@ -50,3 +50,38 @@ export const AdvisorUtil = {
     return m;
   },
 };
+
+export type WebsiteItem = { text: string; href?: string; title?: string };
+
+const URL_TOKEN = /^(?:https?:\/\/)?(?:[\w-]+\.)+[a-z]{2,}(?:[/?#]\S*)?$/i;
+const SHORT_MAX = 40;
+
+function shortUrl(url: string): string {
+  const s = url.replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/$/, "");
+  return s.length > SHORT_MAX ? s.slice(0, SHORT_MAX - 1) + "…" : s;
+}
+
+function urlItem(token: string, text?: string): WebsiteItem {
+  const href = /^https?:\/\//i.test(token) ? token : `https://${token}`;
+  const short = shortUrl(token);
+  return { text: text ?? short, href, title: short.endsWith("…") ? token : undefined };
+}
+
+/**
+ * The advisor's "Strona WWW" field split into what to show, one item per
+ * line: several addresses (one per line, or separated by commas, semicolons
+ * or spaces) become separate links, shown without https:// and www. and cut
+ * short when long; a description like "Fb: nazwa profilu" stays as text, and
+ * a description with one address in it links to that address.
+ */
+export function websiteItems(website: string): WebsiteItem[] {
+  const items: WebsiteItem[] = [];
+  for (const part of website.split(/[\n;,]+/).map((p) => p.trim()).filter(Boolean)) {
+    const tokens = part.split(/\s+/);
+    const urls = tokens.filter((t) => URL_TOKEN.test(t));
+    if (urls.length === tokens.length) items.push(...urls.map((t) => urlItem(t)));
+    else if (urls.length === 1) items.push(urlItem(urls[0], part.replace(urls[0], shortUrl(urls[0]))));
+    else items.push({ text: part });
+  }
+  return items;
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Advisor } from "@/lib/clauwi/advisors";
+import { websiteItems, type Advisor } from "@/lib/clauwi/advisors";
 
 // Instant client-side filter by name or city — the full region's advisors
 // (at most ~100 rows, see listPublicAdvisors) are already loaded server-side,
@@ -69,7 +69,15 @@ export function AdvisorSearchTable({ items }: { items: Advisor[] }) {
                   <td className="py-3 pr-4 text-ink/75">
                     {a.email && <a href={`mailto:${a.email}`} className="hover:text-brand">{a.email}</a>}
                   </td>
-                  <td className="min-w-[10rem] py-3 pr-4 text-ink/75 [overflow-wrap:anywhere]">{a.website}</td>
+                  <td className="min-w-[10rem] space-y-1.5 py-3 pr-4 text-ink/75 [overflow-wrap:anywhere]">
+                    {websiteItems(a.website).map((w, i) =>
+                      w.href ? (
+                        <a key={i} href={w.href} title={w.title} target="_blank" rel="noopener" className="block hover:text-brand">{w.text}</a>
+                      ) : (
+                        <span key={i} className="block">{w.text}</span>
+                      )
+                    )}
+                  </td>
                   <td className="py-3 pr-4 text-ink/75">{a.phone}</td>
                   <td className="py-3 pr-4 text-ink/75">{a.services}</td>
                 </tr>

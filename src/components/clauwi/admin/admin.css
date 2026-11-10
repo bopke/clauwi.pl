@@ -141,6 +141,8 @@
 .adm-table tbody tr:hover td { background: #fcfbf5; }
 .adm-td-name { font-family: "Quicksand", sans-serif; font-weight: 600; }
 .adm-td-addr { color: var(--ink-soft); font-size: 14px; overflow-wrap: anywhere; }
+.adm-link { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.adm-link:hover { color: var(--green-d); }
 .adm-chip { display: inline-block; background: var(--cream); color: var(--green-d); font-family: "Quicksand", sans-serif; font-weight: 600; font-size: 13px; padding: 4px 11px; border-radius: 999px; }
 .adm-iconbtn { width: 34px; height: 34px; border-radius: 9px; border: 1.5px solid var(--line); background: #fff; color: var(--ink-soft); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all .15s; margin-left: 6px; }
 .adm-iconbtn:hover { border-color: var(--sage); color: var(--green-d); }
@@ -160,8 +162,9 @@
 .adm-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .adm-f { display: flex; flex-direction: column; gap: 6px; }
 .adm-f > span { font-family: "Quicksand", sans-serif; font-weight: 600; font-size: 13px; color: var(--ink); }
-.adm-f input, .adm-f select { padding: 11px 13px; border-radius: 11px; border: 1.5px solid var(--line); font-size: 15px; background: #fcfbf6; outline: none; transition: border-color .15s; }
-.adm-f input:focus, .adm-f select:focus { border-color: var(--sage); background: #fff; }
+.adm-f input, .adm-f select, .adm-f > textarea { padding: 11px 13px; border-radius: 11px; border: 1.5px solid var(--line); font-size: 15px; background: #fcfbf6; outline: none; transition: border-color .15s; }
+.adm-f > textarea { font: inherit; font-size: 15px; resize: vertical; }
+.adm-f input:focus, .adm-f select:focus, .adm-f > textarea:focus { border-color: var(--sage); background: #fff; }
 .adm-f.is-err input { border-color: var(--danger); background: #fdf4ef; }
 .adm-f small { color: var(--ink-soft); font-weight: 400; font-size: 12px; }
 .adm-f.is-err { color: var(--danger); }
