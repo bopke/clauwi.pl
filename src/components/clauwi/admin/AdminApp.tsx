@@ -337,7 +337,7 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
                   <span className="adm-advtable__all">Zaznacz wszystkich widocznych</span>
                 </label>
               </th>
-              <th>Doradca</th><th>Poziom</th><th>Województwo / miejscowość</th><th>Kontakt</th><th>Ważność / uwagi</th><th className="adm-th-act">Akcje</th>
+              <th>Doradca / poziom</th><th>Województwo / miejscowość</th><th>Kontakt</th><th>Ważność / uwagi</th><th className="adm-th-act">Akcje</th>
             </tr>
           </thead>
           <tbody>
@@ -351,9 +351,13 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
                     {a.name}
                     {a.active && <span className="adm-tick" title="Aktywny"><svg viewBox="0 0 24 24" width="15" height="15"><circle cx="12" cy="12" r="11" fill="currentColor" /><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" /></svg></span>}
                   </span>
-                  {!a.active && <div><span className="adm-statusbadge adm-statusbadge--inactive">nieaktywny</span></div>}
+                  {(a.level || !a.active) && (
+                    <div className="adm-td-level">
+                      {a.level && <span className="adm-statusbadge adm-statusbadge--level">{a.level}</span>}
+                      {!a.active && <span className="adm-statusbadge adm-statusbadge--inactive">nieaktywny</span>}
+                    </div>
+                  )}
                 </td>
-                <td className="adm-td-level">{a.level && <span className="adm-statusbadge adm-statusbadge--level">{a.level}</span>}</td>
                 <td className="adm-td-regions">
                   <span className="adm-regchip"><b>{regionName(a.region)}</b>{a.locality ? ": " + a.locality : ""}</span>
                 </td>
@@ -365,7 +369,7 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
                   ))}
                 </td>
                 <td className="adm-td-addr adm-td-valid">
-                  {a.certificationValidUntil && <div>Ważność: {a.certificationValidUntil} <ValidityBadge text={a.certificationValidUntil} /></div>}
+                  {a.certificationValidUntil && <div>Ważność: <span className="adm-nowrap">{a.certificationValidUntil}</span> <ValidityBadge text={a.certificationValidUntil} /></div>}
                   {a.notes && <div>{a.notes}</div>}
                 </td>
                 <td className="adm-td-act">
@@ -379,7 +383,7 @@ function AdvisorsTab({ toast }: { toast: (m: string) => void }) {
               </tr>
             ))}
             {view.length === 0 && (
-              <tr><td colSpan={7} className="adm-empty">{loading ? "Wczytywanie…" : "Brak doradców dla podanych kryteriów."}</td></tr>
+              <tr><td colSpan={6} className="adm-empty">{loading ? "Wczytywanie…" : "Brak doradców dla podanych kryteriów."}</td></tr>
             )}
           </tbody>
         </table>
