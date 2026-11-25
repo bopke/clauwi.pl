@@ -24,16 +24,13 @@ export const TYPE_SUGGESTIONS = ["Kurs podstawowy", "Kurs zaawansowany", "Refres
 export const REQUESTABLE_TYPES = TYPE_SUGGESTIONS.filter((t) => t !== "Konferencja");
 
 /**
- * Towns a visitor can ask for a course in: Poland's largest cities (about
- * 100 000 people and more, every voivodeship capital among them) — the only
+ * Towns a visitor can ask for a course in: the voivodeship capitals (both
+ * seats where a voivodeship has two), except Zielona Góra and Kielce — the
  * places a course could realistically be organised. Alphabetical.
  */
 export const REQUEST_CITIES = [
-  "Białystok", "Bielsko-Biała", "Bydgoszcz", "Bytom", "Chorzów", "Częstochowa", "Dąbrowa Górnicza", "Elbląg",
-  "Gdańsk", "Gdynia", "Gliwice", "Gorzów Wielkopolski", "Kalisz", "Katowice", "Kielce", "Koszalin", "Kraków",
-  "Legnica", "Lublin", "Łódź", "Olsztyn", "Opole", "Płock", "Poznań", "Radom", "Ruda Śląska", "Rybnik",
-  "Rzeszów", "Sosnowiec", "Szczecin", "Tarnów", "Toruń", "Tychy", "Wałbrzych", "Warszawa", "Włocławek",
-  "Wrocław", "Zabrze", "Zielona Góra",
+  "Białystok", "Bydgoszcz", "Gdańsk", "Gorzów Wielkopolski", "Katowice", "Kraków", "Lublin", "Łódź",
+  "Olsztyn", "Opole", "Poznań", "Rzeszów", "Szczecin", "Toruń", "Warszawa", "Wrocław",
 ];
 
 /** Lower-case, trimmed, single spaces — how requests from one town are matched ("wrocław ", "Wrocław"). */
