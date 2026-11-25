@@ -23,6 +23,24 @@ export const TYPE_SUGGESTIONS = ["Kurs podstawowy", "Kurs zaawansowany", "Refres
 /** What visitors can ask for in their city (the widget under the calendar) — a conference isn't one. */
 export const REQUESTABLE_TYPES = TYPE_SUGGESTIONS.filter((t) => t !== "Konferencja");
 
+/**
+ * Towns a visitor can ask for a course in: Poland's largest cities (about
+ * 100 000 people and more, every voivodeship capital among them) — the only
+ * places a course could realistically be organised. Alphabetical.
+ */
+export const REQUEST_CITIES = [
+  "Białystok", "Bielsko-Biała", "Bydgoszcz", "Bytom", "Chorzów", "Częstochowa", "Dąbrowa Górnicza", "Elbląg",
+  "Gdańsk", "Gdynia", "Gliwice", "Gorzów Wielkopolski", "Kalisz", "Katowice", "Kielce", "Koszalin", "Kraków",
+  "Legnica", "Lublin", "Łódź", "Olsztyn", "Opole", "Płock", "Poznań", "Radom", "Ruda Śląska", "Rybnik",
+  "Rzeszów", "Sosnowiec", "Szczecin", "Tarnów", "Toruń", "Tychy", "Wałbrzych", "Warszawa", "Włocławek",
+  "Wrocław", "Zabrze", "Zielona Góra",
+];
+
+/** Lower-case, trimmed, single spaces — how requests from one town are matched ("wrocław ", "Wrocław"). */
+export function cityKey(city: string): string {
+  return city.trim().replace(/\s+/g, " ").toLocaleLowerCase("pl");
+}
+
 /** A visitor's "no course in my city" request (migrations/0023). */
 export type CourseRequest = { id: number; city: string; types: string[]; email: string; createdAt: string };
 

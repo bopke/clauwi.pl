@@ -7,17 +7,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TYPE_SUGGESTIONS } from "@/lib/clauwi/courses";
-import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus, CourseRequest } from "@/lib/clauwi/courses";
+import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus } from "@/lib/clauwi/courses";
 import {
   createCourseAction, deleteCourseAction, getCoursesAdminAction, updateCourseAction,
   getBookingsForCourseAction, updateBookingStatusAction, updateBookingAction, deleteBookingAction,
-  getUnseenBookingCountsAction, markCourseSeenAction, getCourseRequestsAction, deleteCourseRequestsAction,
+  getUnseenBookingCountsAction, markCourseSeenAction,
 } from "@/app/admin/actions";
 import { COURSE_MESSAGE_KEY } from "./MessageComposer";
 
 const coll = new Intl.Collator("pl");
 
-const TrashIcon = () => (
+export const TrashIcon = () => (
   <svg viewBox="0 0 24 24" width="17" height="17"><path d="M5 7h14M10 7V5h4v2M6 7l1 13h10l1-13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
 
@@ -145,7 +145,7 @@ function CourseForm({ initial, copyOf, onSave, onClose }: { initial: Course | nu
   );
 }
 
-function Confirm({ title, text, confirmLabel, onConfirm, onClose }: { title: string; text: string; confirmLabel: string; onConfirm: () => void; onClose: () => void }) {
+export function Confirm({ title, text, confirmLabel, onConfirm, onClose }: { title: string; text: string; confirmLabel: string; onConfirm: () => void; onClose: () => void }) {
   return (
     <div className="adm-modal" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="adm-confirm">
@@ -487,116 +487,6 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
   );
 }
 
-type RequestGroup = { city: string; ids: number[]; types: [string, number][]; emails: string[]; last: string };
-
-/** Requests from the same place, however it was typed ("wrocław ", "Wrocław"). */
-function groupRequests(list: CourseRequest[]): RequestGroup[] {
-  const groups = new Map<string, { city: string; ids: number[]; types: Map<string, number>; emails: Set<string>; last: string }>();
-  for (const r of list) {
-    const key = r.city.trim().toLocaleLowerCase("pl");
-    const g = groups.get(key) ?? { city: r.city.trim(), ids: [] as number[], types: new Map<string, number>(), emails: new Set<string>(), last: r.createdAt };
-    g.ids.push(r.id);
-    // Show a capitalised spelling if anyone typed one.
-    if (g.city[0] === g.city[0].toLocaleLowerCase("pl") && r.city.trim()[0] !== r.city.trim()[0].toLocaleLowerCase("pl")) g.city = r.city.trim();
-    for (const t of r.types) g.types.set(t, (g.types.get(t) ?? 0) + 1);
-    if (r.email) g.emails.add(r.email.toLowerCase());
-    if (r.createdAt > g.last) g.last = r.createdAt;
-    groups.set(key, g);
-  }
-  return [...groups.values()]
-    .map((g) => ({ ...g, types: [...g.types].sort((a, b) => b[1] - a[1]), emails: [...g.emails] }))
-    .sort((a, b) => b.ids.length - a.ids.length || b.last.localeCompare(a.last));
-}
-
-/** "No course in your city?" requests from the public calendar, by place. */
-function CourseRequests({ toast }: { toast: (m: string) => void }) {
-  const [list, setList] = useState<CourseRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [delTarget, setDelTarget] = useState<RequestGroup | null>(null);
-
-  const refresh = useCallback(async () => {
-    try { setList(await getCourseRequestsAction()); } finally { setLoading(false); }
-  }, []);
-  useEffect(() => { refresh(); }, [refresh]);
-
-  const groups = useMemo(() => groupRequests(list), [list]);
-
-  async function copyEmails(g: RequestGroup) {
-    try {
-      await navigator.clipboard.writeText(g.emails.join(", "));
-      toast(`Skopiowano ${g.emails.length === 1 ? "adres" : "adresy"}: ${g.city}`);
-    } catch {
-      toast("Nie udało się skopiować");
-    }
-  }
-
-  async function doDelete() {
-    if (!delTarget) return;
-    try {
-      await deleteCourseRequestsAction(delTarget.ids);
-      toast("Usunięto zapytania");
-    } catch {
-      toast("Nie udało się usunąć");
-    } finally {
-      setDelTarget(null);
-      await refresh();
-    }
-  }
-
-  return (
-    <div className="adm-card adm-requests">
-      <h3 className="adm-card__title">Zapytania o kursy w innych miejscowościach <span className="adm-card__n">{list.length}</span></h3>
-      <p className="adm-card__sub">Z formularza „Nie widzisz kursu w swojej okolicy?” pod kalendarzem kursów. Adresy e-mail podały osoby, które chcą dostać wiadomość, gdy pojawi się tam termin — zgodziły się tylko na kontakt w tej sprawie.</p>
-      <div className="adm-tablewrap">
-        <table className="adm-table">
-          <thead>
-            <tr><th>Miejscowość</th><th>Zapytań</th><th>Kursy</th><th>Do powiadomienia</th><th>Ostatnie</th><th className="adm-th-act">Akcje</th></tr>
-          </thead>
-          <tbody>
-            {groups.map((g) => (
-              <tr key={g.city.toLocaleLowerCase("pl")}>
-                <td className="adm-td-name">{g.city}</td>
-                <td>{g.ids.length}</td>
-                <td>
-                  {g.types.map(([t, n]) => (
-                    <span key={t} className="adm-statusbadge adm-statusbadge--level adm-requests__type">{t}{n > 1 && ` ×${n}`}</span>
-                  ))}
-                </td>
-                <td className="adm-td-addr">
-                  {g.emails.length === 0 ? <span className="adm-requests__none">—</span> : (
-                    <>
-                      {g.emails.map((e) => <div key={e}>{e}</div>)}
-                      <button type="button" className="adm-linkbtn" onClick={() => copyEmails(g)}>Kopiuj adresy</button>
-                    </>
-                  )}
-                </td>
-                <td className="adm-nowrap">{g.last.slice(0, 10)}</td>
-                <td className="adm-td-act">
-                  <button className="adm-iconbtn adm-iconbtn--danger" title="Usuń zapytania z tej miejscowości" aria-label={`Usuń zapytania: ${g.city}`} onClick={() => setDelTarget(g)}>
-                    <TrashIcon />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {groups.length === 0 && (
-              <tr><td colSpan={6} className="adm-empty">{loading ? "Wczytywanie…" : "Brak zapytań."}</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      {delTarget && (
-        <Confirm
-          title="Usunąć zapytania?"
-          text={`Usunąć ${delTarget.ids.length === 1 ? "zapytanie" : `${delTarget.ids.length} zapytań`} z miejscowości „${delTarget.city}”? Np. po zaplanowaniu tam kursu. Tej operacji nie można cofnąć.`}
-          confirmLabel="Usuń"
-          onConfirm={doDelete}
-          onClose={() => setDelTarget(null)}
-        />
-      )}
-    </div>
-  );
-}
-
 export function CoursesTab({ toast, onUnseenChange }: { toast: (m: string) => void; onUnseenChange?: (counts: Record<string, number>) => void }) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [unseen, setUnseen] = useState<Record<string, number>>({});
@@ -717,8 +607,6 @@ export function CoursesTab({ toast, onUnseenChange }: { toast: (m: string) => vo
           </tbody>
         </table>
       </div>
-
-      <CourseRequests toast={toast} />
 
       {editing && (
         <CourseForm

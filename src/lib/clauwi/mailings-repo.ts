@@ -41,7 +41,7 @@ function toCounts(json: string | number | null | undefined): MailingCounts {
 function rowToMailing(r: Row): Mailing {
   return {
     id: str(r.id),
-    kind: r.kind === "course" ? "course" : "newsletter",
+    kind: r.kind === "course" || r.kind === "request" ? r.kind : "newsletter",
     subject: str(r.subject),
     heading: str(r.heading),
     body: str(r.body),
@@ -64,7 +64,7 @@ const COUNTS = `(SELECT json_group_object(status, n) FROM (
 
 /** Links to the site carry the mailing's campaign — visible in Google Analytics. */
 function utmFor(m: Row): Utm {
-  return { source: m.kind === "newsletter" ? "newsletter" : "wiadomosc-kurs", campaign: str(m.campaign) };
+  return { source: m.kind === "newsletter" ? "newsletter" : m.kind === "request" ? "powiadomienie" : "wiadomosc-kurs", campaign: str(m.campaign) };
 }
 
 // ----- Settings -----
@@ -135,9 +135,13 @@ export async function createNewsletterMailing(m: NewMailing & { filters: Newslet
   return id;
 }
 
-/** A message to chosen course participants (already looked up by the caller). */
+/**
+ * A message to a list looked up by the caller: chosen course participants
+ * (ref = booking id), or people who asked for a course in their town (ref =
+ * request id).
+ */
 export async function createCourseMailing(
-  m: NewMailing & { courseId: string },
+  m: NewMailing,
   recipients: { bookingId: string; recipient: NewsletterRecipient }[],
 ): Promise<string> {
   const DB = await db();
@@ -203,7 +207,7 @@ export async function mailingPreview(id: string): Promise<{ html: string; subjec
   const { html, subject } = buildMessageEmail(
     { subject: str(m.subject), heading: str(m.heading), body: str(m.body) },
     JSON.parse(str(first.data)) as NewsletterRecipient,
-    { baseUrl, unsubscribeUrl: m.kind === "newsletter" ? unsubscribeUrl(baseUrl, "podglad") : undefined, utm: utmFor(m) },
+    { baseUrl, unsubscribeUrl: m.kind !== "course" ? unsubscribeUrl(baseUrl, "podglad") : undefined, utm: utmFor(m) },
   );
   return { html, subject, email: str(first.email) };
 }
@@ -261,7 +265,7 @@ export type ProcessResult = {
 
 /**
  * Sends the next chunk of a mailing: claims up to `max` queued recipients,
- * renders each one's e-mail and sends it. Newsletter mailings skip anyone who
+ * renders each one's e-mail and sends it. Newsletter and request mailings skip anyone who
  * has unsubscribed since the mailing was queued, carry each recipient's own
  * unsubscribe link, and stay within the daily limit.
  */
@@ -273,6 +277,9 @@ export async function processMailing(id: string, max = MAILING_CHUNK): Promise<P
   if (str(m.send_after) > nowUtcSql()) return { waiting: "scheduled", sent: 0, processed: 0 };
 
   const newsletter = m.kind === "newsletter";
+  // Newsletter and course-request notices are marketing: unsubscribe link, no
+  // sending to anyone who unsubscribed. Course messages are about a booking.
+  const marketing = m.kind !== "course";
   let allowance = max;
   if (newsletter) {
     allowance = Math.min(max, (await getDailyLimit()) - (await sentLast24h()));
@@ -292,7 +299,7 @@ export async function processMailing(id: string, max = MAILING_CHUNK): Promise<P
     const emails = claimed.map((c) => c.email);
     let suppressed = new Set<string>();
     let tokens = new Map<string, string>();
-    if (newsletter) {
+    if (marketing) {
       const { results: sup } = await DB.prepare(
         "SELECT email FROM newsletter_suppressions WHERE email IN (SELECT value FROM json_each(?))",
       ).bind(JSON.stringify(emails)).all<{ email: string }>();
@@ -312,10 +319,10 @@ export async function processMailing(id: string, max = MAILING_CHUNK): Promise<P
         const token = tokens.get(c.email.toLowerCase());
         const { subject, html, text } = buildMessageEmail(draft, r, {
           baseUrl,
-          unsubscribeUrl: newsletter && token ? unsubscribeUrl(baseUrl, token) : undefined,
+          unsubscribeUrl: marketing && token ? unsubscribeUrl(baseUrl, token) : undefined,
           utm: utmFor(m),
         });
-        if (newsletter && !token) throw new Error("brak linku wypisu");
+        if (marketing && !token) throw new Error("brak linku wypisu");
         await sendEmail({
           to: c.email,
           toName: `${r.firstName} ${r.lastName}`.trim() || undefined,

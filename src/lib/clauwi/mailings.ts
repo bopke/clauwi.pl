@@ -1,7 +1,14 @@
 // Shared types for the sent-message log and sending queue (client + server).
 // See migrations/0018_mailings.sql for how it works.
 
-export type MailingKind = "newsletter" | "course";
+/** request: to people who asked for a course in their town (course_requests) and left an e-mail. */
+export type MailingKind = "newsletter" | "course" | "request";
+
+export const MAILING_KIND_LABELS: Record<MailingKind, string> = {
+  newsletter: "Newsletter",
+  course: "Wiadomość do uczestników",
+  request: "Powiadomienie o kursie",
+};
 export type MailingStatus = "sending" | "paused" | "done" | "cancelled";
 export type RecipientStatus = "queued" | "sending" | "sent" | "failed" | "skipped" | "bounced" | "complained";
 

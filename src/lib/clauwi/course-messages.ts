@@ -10,6 +10,7 @@ import type { Course, CourseBooking } from "./courses";
 import type { NewsletterRecipient } from "./newsletter";
 import type { NewsletterDraft } from "./newsletter-template";
 import { createCourseMailing } from "./mailings-repo";
+import { requestersFor } from "./course-requests-repo";
 
 function toRecipient(b: CourseBooking, c: Course): NewsletterRecipient {
   return {
@@ -68,5 +69,34 @@ export async function createCourseMessage(
       ...opts,
     },
     found.recipients.map((recipient, i) => ({ bookingId: found.bookingIds[i], recipient })),
+  );
+}
+
+// ----- Notices to people who asked for a course in their town -----
+
+function requestRecipient(email: string): NewsletterRecipient {
+  // Nothing but the address is known — no name, no course of their own.
+  return { email, firstName: "", lastName: "", course: null };
+}
+
+/** Who a notice about `type` in `city` goes to (see requestersFor). */
+export async function requestMessageRecipients(city: string, type: string): Promise<{ recipients: NewsletterRecipient[]; requestIds: string[] }> {
+  const found = (await requestersFor(city, type)).sort((a, b) => a.email.localeCompare(b.email));
+  return { recipients: found.map((r) => requestRecipient(r.email)), requestIds: found.map((r) => String(r.id)) };
+}
+
+/** Records the notice and its recipients; its page in "Wysyłki" then sends it. Returns its id. */
+export async function createRequestMessage(
+  city: string,
+  type: string,
+  draft: NewsletterDraft,
+  opts: { createdBy: string; baseUrl: string },
+): Promise<string> {
+  if (!draft.subject.trim() || !draft.body.trim()) throw new Error("empty message");
+  const found = await requestMessageRecipients(city, type);
+  if (found.recipients.length === 0) throw new Error("no recipients");
+  return createCourseMailing(
+    { kind: "request", draft, audience: `zainteresowani: ${type} · ${city.trim()}`, ...opts },
+    found.recipients.map((recipient, i) => ({ bookingId: found.requestIds[i], recipient })),
   );
 }

@@ -1,8 +1,10 @@
 "use client";
 
-// Message composer, in two modes:
+// Message composer, in three modes:
 // - "newsletter": a mailing to the people picked on the "Newsletter" tab,
-// - "course": a message to participants ticked on a course's booking list.
+// - "course": a message to participants ticked on a course's booking list,
+// - "request": a notice to people who asked for a course type in their town
+//   ("Zapytania" tab) and left an e-mail.
 // The message on the left, a live preview on the right, rendered for one real
 // recipient at a time so the placeholders can be checked. Sending records the
 // message with its recipients and moves to its page in "Wysyłki", which shows
@@ -20,34 +22,55 @@ import { buildMessageEmail, unsubscribeUrl, type NewsletterDraft } from "@/lib/c
 import { DraftEditor, EMPTY_DRAFT } from "./DraftEditor";
 import type { Course } from "@/lib/clauwi/courses";
 import {
-  createCourseMessageAction, createNewsletterMailingAction, deleteTemplateAction, getCourseMessageAction, getMeAction,
-  getNewsletterRecipientAction, getSendingSettingsAction, getTemplatesAction, saveTemplateAction, sendTestAction,
+  createCourseMessageAction, createNewsletterMailingAction, createRequestMessageAction, deleteTemplateAction, getCourseMessageAction, getMeAction,
+  getNewsletterRecipientAction, getRequestMessageAction, getSendingSettingsAction, getTemplatesAction, saveTemplateAction, sendTestAction,
 } from "@/app/admin/actions";
 import type { MessageTemplate } from "@/lib/clauwi/message-templates-repo";
 import "./admin.css";
 
-export type ComposerKind = "newsletter" | "course";
+export type ComposerKind = "newsletter" | "course" | "request";
 
 /** sessionStorage: NewsletterFilters from the newsletter tab. */
 export const NEWSLETTER_FILTERS_KEY = "clauwi-newsletter-filters";
 /** sessionStorage: { courseId, bookingIds } from a course's booking list. */
 export const COURSE_MESSAGE_KEY = "clauwi-course-message";
+/** sessionStorage: { city, type } from the "Zapytania" tab. */
+export const REQUEST_MESSAGE_KEY = "clauwi-request-message";
+const TARGET_KEYS: Record<ComposerKind, string> = {
+  newsletter: NEWSLETTER_FILTERS_KEY,
+  course: COURSE_MESSAGE_KEY,
+  request: REQUEST_MESSAGE_KEY,
+};
 const DRAFT_KEYS: Record<ComposerKind, string> = {
   newsletter: "clauwi-newsletter-draft",
   course: "clauwi-course-message-draft",
+  request: "clauwi-request-message-draft",
+};
+const BACK: Record<ComposerKind, { href: string; label: string }> = {
+  newsletter: { href: "/admin?tab=newsletter", label: "Lista newslettera" },
+  course: { href: "/admin?tab=kursy", label: "Kursy" },
+  request: { href: "/admin?tab=zapytania", label: "Zapytania" },
+};
+const TITLES: Record<ComposerKind, string> = {
+  newsletter: "Nowa wiadomość",
+  course: "Wiadomość do uczestników",
+  request: "Powiadomienie o kursie",
 };
 
 type Target =
   | { kind: "newsletter"; filters: NewsletterFilters }
-  | { kind: "course"; courseId: string; bookingIds: string[] };
+  | { kind: "course"; courseId: string; bookingIds: string[] }
+  | { kind: "request"; city: string; type: string };
 
 /** What the calling list left in sessionStorage for this mode. */
 function readTarget(kind: ComposerKind): Target | null {
   try {
-    const raw = read(() => sessionStorage, kind === "newsletter" ? NEWSLETTER_FILTERS_KEY : COURSE_MESSAGE_KEY);
+    const raw = read(() => sessionStorage, TARGET_KEYS[kind]);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    return kind === "newsletter" ? { kind, filters: data as NewsletterFilters } : { kind, courseId: String(data.courseId), bookingIds: data.bookingIds as string[] };
+    if (kind === "newsletter") return { kind, filters: data as NewsletterFilters };
+    if (kind === "request") return { kind, city: String(data.city), type: String(data.type) };
+    return { kind, courseId: String(data.courseId), bookingIds: data.bookingIds as string[] };
   } catch {
     return null;
   }
@@ -246,6 +269,8 @@ function Composer({ kind }: { kind: ComposerKind }) {
   const [preview, setPreview] = useState<{ recipient: NewsletterRecipient | null; total: number } | null>(null);
   // Course: the few chosen participants are fetched at once.
   const [courseData, setCourseData] = useState<{ course: Course; recipients: NewsletterRecipient[]; bookingIds: string[] } | null>(null);
+  // Request: likewise — a town's interested people are a handful.
+  const [requestData, setRequestData] = useState<{ recipients: NewsletterRecipient[] } | null>(null);
   const [failed, setFailed] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -276,6 +301,11 @@ function Composer({ kind }: { kind: ComposerKind }) {
     );
   }, [target]);
 
+  useEffect(() => {
+    if (target?.kind !== "request") return;
+    getRequestMessageAction(target.city, target.type).then(setRequestData, () => setFailed(true));
+  }, [target]);
+
   function openConfirm() {
     setCreateFailed(false);
     setConfirming(true);
@@ -291,7 +321,9 @@ function Composer({ kind }: { kind: ComposerKind }) {
       const id =
         target.kind === "course"
           ? await createCourseMessageAction(target.courseId, courseData?.bookingIds ?? [], draft)
-          : await createNewsletterMailingAction(target.filters, draft, summary.join(" · ") || "wszyscy z listy newslettera", scheduleAt ? localToUtcSql(scheduleAt) : undefined);
+          : target.kind === "request"
+            ? await createRequestMessageAction(target.city, target.type, draft)
+            : await createNewsletterMailingAction(target.filters, draft, summary.join(" · ") || "wszyscy z listy newslettera", scheduleAt ? localToUtcSql(scheduleAt) : undefined);
       try {
         localStorage.removeItem(draftKey);
       } catch {}
@@ -306,18 +338,20 @@ function Composer({ kind }: { kind: ComposerKind }) {
   const view =
     target?.kind === "course"
       ? courseData && { recipient: courseData.recipients[index] ?? null, total: courseData.recipients.length }
-      : preview;
+      : target?.kind === "request"
+        ? requestData && { recipient: requestData.recipients[index] ?? null, total: requestData.recipients.length }
+        : preview;
   const total = view?.total ?? 0;
   const recipient = view?.recipient ?? (view && total === 0 ? SAMPLE : null);
   const email = useMemo(() => {
     if (!recipient) return null;
     const baseUrl = window.location.origin;
-    // Newsletter mailings carry an unsubscribe link (each recipient's own at
-    // send time); messages about a course booking don't.
-    return buildMessageEmail(draft, recipient, kind === "newsletter" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "podglad") } : { baseUrl });
+    // Newsletter mailings and course notices carry an unsubscribe link (each
+    // recipient's own at send time); messages about a course booking don't.
+    return buildMessageEmail(draft, recipient, kind !== "course" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "podglad") } : { baseUrl });
   }, [draft, recipient, kind]);
 
-  const backHref = kind === "newsletter" ? "/admin?tab=newsletter" : "/admin?tab=kursy";
+  const backHref = BACK[kind].href;
   if (!target) {
     return (
       <div className="adm-root">
@@ -326,6 +360,8 @@ function Composer({ kind }: { kind: ComposerKind }) {
             Nie wybrano odbiorców.{" "}
             {kind === "newsletter" ? (
               <><Link href={backHref}>Wróć do listy newslettera</Link> i kliknij „Wyślij do…”.</>
+            ) : kind === "request" ? (
+              <><Link href={backHref}>Wróć do zapytań</Link> i kliknij „Powiadom…” przy miejscowości.</>
             ) : (
               <><Link href={backHref}>Wróć do kursów</Link>, otwórz zgłoszenia kursu, zaznacz uczestników i kliknij „Napisz do zaznaczonych”.</>
             )}
@@ -343,9 +379,11 @@ function Composer({ kind }: { kind: ComposerKind }) {
           target.filters.courseIds.length ? `${target.filters.courseIds.length} ${plural(target.filters.courseIds.length, "wybrany kurs", "wybrane kursy", "wybranych kursów")}` : null,
           target.filters.q ? `„${target.filters.q}”` : null,
         ].filter(Boolean)
-      : courseData
-        ? [`uczestnicy kursu ${courseData.course.name} (${shortDate(courseData.course.startsAt)})`]
-        : [];
+      : target.kind === "request"
+        ? [`zainteresowani: ${target.type} · ${target.city}`]
+        : courseData
+          ? [`uczestnicy kursu ${courseData.course.name} (${shortDate(courseData.course.startsAt)})`]
+          : [];
   const canSend = total > 0 && draft.subject.trim() !== "" && draft.body.trim() !== "" && !creating;
   const people = `${total} ${plural(total, "osoby", "osób", "osób")}`;
   // How many days a newsletter mailing will take at the daily limit.
@@ -355,9 +393,9 @@ function Composer({ kind }: { kind: ComposerKind }) {
   return (
     <div className="adm-root">
       <header className="adm-top">
-        <Link href={backHref} className="adm-btn adm-btn--ghost">← {kind === "newsletter" ? "Lista newslettera" : "Kursy"}</Link>
+        <Link href={backHref} className="adm-btn adm-btn--ghost">← {BACK[kind].label}</Link>
         <div className="adm-compose__to">
-          <b>{kind === "newsletter" ? "Nowa wiadomość" : "Wiadomość do uczestników"}</b>
+          <b>{TITLES[kind]}</b>
           <span>
             do {view ? people : "…"}
             {summary.length > 0 && <> · {summary.join(" · ")}</>}
@@ -387,7 +425,8 @@ function Composer({ kind }: { kind: ComposerKind }) {
             <h2>{kind === "newsletter" && scheduleAt ? "Zaplanować wysyłkę?" : "Wysłać wiadomość?"}</h2>
             <p>
               „{draft.subject}” trafi do {people}
-              {courseData && <> — uczestników kursu {courseData.course.name}</>}. Każdy dostanie osobny e-mail, odpowiedzi przyjdą na
+              {courseData && <> — uczestników kursu {courseData.course.name}</>}
+              {target.kind === "request" && <> zainteresowanych kursem „{target.type}” w miejscowości {target.city}</>}. Każdy dostanie osobny e-mail, odpowiedzi przyjdą na
               kontakt@clauwi.pl. Wysłanej wiadomości nie można cofnąć.
             </p>
             {kind === "newsletter" && (
@@ -447,7 +486,13 @@ function Composer({ kind }: { kind: ComposerKind }) {
             } catch {}
           }}
           recipient={recipient}
-          courseNote={kind === "newsletter" ? "Dane kursu pochodzą z najnowszego pasującego kursu danej osoby." : "Dane kursu to kurs, na który osoba jest zapisana."}
+          courseNote={
+            kind === "newsletter"
+              ? "Dane kursu pochodzą z najnowszego pasującego kursu danej osoby."
+              : kind === "request"
+                ? "Te osoby podały tylko adres e-mail — imię i dane kursu będą puste, wpisz termin i miejsce w treści."
+                : "Dane kursu to kurs, na który osoba jest zapisana."
+          }
           tools={<button type="button" className="adm-btn adm-btn--ghost" onClick={() => setTemplates(true)}>Szablony…</button>}
         />
 

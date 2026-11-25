@@ -14,6 +14,7 @@ import {
   getAllowlistAction, removeAllowAction, signOutAction, updateAdvisorAction, getUnseenBookingCountsAction,
 } from "@/app/admin/actions";
 import { CoursesTab } from "./CoursesTab";
+import { RequestsTab } from "./RequestsTab";
 import { NewsletterTab } from "./NewsletterTab";
 import { MailingsTab } from "./MailingsTab";
 import { AutomationsTab } from "./AutomationsTab";
@@ -538,7 +539,7 @@ function useToast(): [(m: string) => void, React.ReactNode] {
 }
 
 // ====== The app shell, once signed in ======
-type Tab = "doradcy" | "kursy" | "newsletter" | "wysylki" | "automatyczne" | "dostep";
+type Tab = "doradcy" | "kursy" | "zapytania" | "newsletter" | "wysylki" | "automatyczne" | "dostep";
 
 export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; initialTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -574,6 +575,7 @@ export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; in
             Kursy
             {unseenTotal > 0 && <span className="adm-tabs__count" title="Nowe zgłoszenia od Twojej ostatniej wizyty">{unseenTotal}</span>}
           </button>
+          <button className={tab === "zapytania" ? "is-active" : ""} onClick={() => setTab("zapytania")}>Zapytania</button>
           <button className={tab === "newsletter" ? "is-active" : ""} onClick={() => setTab("newsletter")}>Newsletter</button>
           <button className={tab === "wysylki" ? "is-active" : ""} onClick={() => setTab("wysylki")}>Wysyłki</button>
           <button className={tab === "automatyczne" ? "is-active" : ""} onClick={() => setTab("automatyczne")}>Automatyczne</button>
@@ -603,16 +605,18 @@ export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; in
 
       <main className="adm-main">
         <div className="adm-head">
-          <h1>{tab === "doradcy" ? "Doradcy" : tab === "kursy" ? "Kursy" : tab === "newsletter" ? "Newsletter" : tab === "wysylki" ? "Wysyłki" : tab === "automatyczne" ? "Wiadomości automatyczne" : "Zarządzanie dostępem"}</h1>
+          <h1>{tab === "doradcy" ? "Doradcy" : tab === "kursy" ? "Kursy" : tab === "zapytania" ? "Zapytania o kursy" : tab === "newsletter" ? "Newsletter" : tab === "wysylki" ? "Wysyłki" : tab === "automatyczne" ? "Wiadomości automatyczne" : "Zarządzanie dostępem"}</h1>
           <p>
             {tab === "doradcy"
               ? "Dodawaj, edytuj i usuwaj doradców widocznych na stronie."
               : tab === "kursy"
                 ? "Zarządzaj kalendarzem kursów i przeglądaj zgłoszenia uczestników."
+                : tab === "zapytania"
+                  ? "Gdzie i jakich kursów brakuje — z formularza „Nie widzisz kursu w swojej okolicy?” pod kalendarzem. Osobom, które podały e-mail, możesz wysłać powiadomienie o nowym terminie."
                 : tab === "newsletter"
                   ? "Adresy osób, które zgodziły się na e-maile z ofertami — z widżetu newslettera i z zapisów na kursy."
                   : tab === "wysylki"
-                    ? "Wszystkie wiadomości wysłane z panelu — newslettery i wiadomości do uczestników kursów."
+                    ? "Wszystkie wiadomości wysłane z panelu — newslettery, wiadomości do uczestników kursów i powiadomienia o kursach."
                     : tab === "automatyczne"
                       ? "E-maile, które wysyłają się same — po zapisie na newsletter, przed kursem i po nim. Każdy można włączyć, wyłączyć i zmienić jego treść."
                   : "Decyduj, które konta Google mają dostęp do panelu."}
@@ -622,6 +626,8 @@ export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; in
           <AdvisorsTab toast={toast} />
         ) : tab === "kursy" ? (
           <CoursesTab toast={toast} onUnseenChange={onUnseenChange} />
+        ) : tab === "zapytania" ? (
+          <RequestsTab toast={toast} />
         ) : tab === "newsletter" ? (
           <NewsletterTab toast={toast} />
         ) : tab === "wysylki" ? (

@@ -3,7 +3,7 @@ import "server-only";
 // D1 access for the "no course in your city?" requests (migrations/0023).
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import type { CourseRequest } from "./courses";
+import { cityKey, type CourseRequest } from "./courses";
 
 async function db(): Promise<D1Database> {
   const { env } = await getCloudflareContext({ async: true });
@@ -29,6 +29,21 @@ export async function addCourseRequest(r: { city: string; types: string[]; email
 export async function listCourseRequests(): Promise<CourseRequest[]> {
   const { results } = await (await db()).prepare("SELECT * FROM course_requests ORDER BY created_at DESC, id DESC LIMIT 1000").all<Row>();
   return (results ?? []).map(rowToRequest);
+}
+
+/**
+ * People who asked for `type` in `city` and left an e-mail (so agreed to be
+ * told) — one per address, the latest request.
+ */
+export async function requestersFor(city: string, type: string): Promise<CourseRequest[]> {
+  const key = cityKey(city);
+  const seen = new Set<string>();
+  return (await listCourseRequests()).filter((r) => {
+    const email = r.email.toLowerCase();
+    if (!email || cityKey(r.city) !== key || !r.types.includes(type) || seen.has(email)) return false;
+    seen.add(email);
+    return true;
+  });
 }
 
 export async function deleteCourseRequests(ids: number[]): Promise<void> {

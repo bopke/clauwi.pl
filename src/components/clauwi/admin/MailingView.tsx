@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  MAILING_RECIPIENTS_PAGE, mailingStatusLabel, nowUtcSql, RECIPIENT_STATUS_LABELS,
+  MAILING_KIND_LABELS, MAILING_RECIPIENTS_PAGE, mailingStatusLabel, nowUtcSql, RECIPIENT_STATUS_LABELS,
   type Mailing, type MailingRecipientRow, type RecipientStatus,
 } from "@/lib/clauwi/mailings";
 import {
@@ -148,7 +148,7 @@ export function MailingView({ id }: { id: string }) {
         <div className="adm-compose__to">
           <b>{mailing.subject}</b>
           <span>
-            {mailing.kind === "newsletter" ? "Newsletter" : "Wiadomość do uczestników"} · {mailing.audience} · {c.total}{" "}
+            {MAILING_KIND_LABELS[mailing.kind]} · {mailing.audience} · {c.total}{" "}
             {plural(c.total, "odbiorca", "odbiorców", "odbiorców")}
           </span>
         </div>

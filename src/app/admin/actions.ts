@@ -20,7 +20,7 @@ import {
   adminListSuppressions, adminRestoreSubscriber, type SuppressionRow,
 } from "@/lib/clauwi/newsletter-repo";
 import type { ConsentEntry } from "@/lib/clauwi/consent";
-import { courseMessageRecipients, createCourseMessage } from "@/lib/clauwi/course-messages";
+import { courseMessageRecipients, createCourseMessage, createRequestMessage, requestMessageRecipients } from "@/lib/clauwi/course-messages";
 import { buildMessageEmail, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
 import {
   cancelMailing, createNewsletterMailing, getDailyLimit, getMailing, listMailingRecipients, mailingPreview, listMailings, pauseMailing,
@@ -355,6 +355,18 @@ export async function createCourseMessageAction(courseId: string, bookingIds: st
   return createCourseMessage(courseId, bookingIds, draft, { createdBy: me, baseUrl: await emailBaseUrl() });
 }
 
+/** The people a notice about `type` in `city` would go to — for the composer. */
+export async function getRequestMessageAction(city: string, type: string): Promise<{ recipients: NewsletterRecipient[] }> {
+  await requireAdmin();
+  return { recipients: (await requestMessageRecipients(String(city), String(type))).recipients };
+}
+
+/** Records the notice; its page (/admin/wysylki/<id>) then sends it. */
+export async function createRequestMessageAction(city: string, type: string, draft: NewsletterDraft): Promise<string> {
+  const me = await requireAdmin();
+  return createRequestMessage(String(city), String(type), draft, { createdBy: me, baseUrl: await emailBaseUrl() });
+}
+
 // ----- Mailings (sent-message log and queue) -----
 
 /**
@@ -479,7 +491,7 @@ export async function getMeAction(): Promise<string> {
  * to check it in a real inbox. Not logged as a mailing.
  */
 export async function sendTestAction(
-  kind: "newsletter" | "course",
+  kind: "newsletter" | "course" | "request",
   draft: NewsletterDraft,
   recipient: NewsletterRecipient,
   to: string,
@@ -491,7 +503,7 @@ export async function sendTestAction(
   const { subject, html, text } = buildMessageEmail(
     draft,
     recipient,
-    kind === "newsletter" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "test") } : { baseUrl },
+    kind !== "course" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "test") } : { baseUrl },
   );
   await sendEmail({ to: address, subject: `[TEST] ${subject}`, html, text, replyTo: { email: CONTACT.email, name: SITE.name } });
 }

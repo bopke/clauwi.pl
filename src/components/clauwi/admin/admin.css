@@ -485,9 +485,13 @@ button.adm-chip.is-on { border-color: currentColor; }
   .adm-bulkbar__actions .adm-btn--danger { flex: 0 0 auto; }
 }
 
-/* ---------- Course requests (under the courses table) ---------- */
-.adm-requests { margin-top: 28px; }
-.adm-requests .adm-tablewrap { box-shadow: none; }
+/* ---------- Course requests ("Zapytania" tab) ---------- */
 .adm-requests__type { margin: 2px 6px 2px 0; display: inline-block; }
 .adm-requests__none { color: var(--ink-soft); }
 .adm-requests .adm-td-addr { font-size: 14px; }
+.adm-requests .adm-td-addr > .adm-linkbtn { padding: 0; font-size: 14px; }
+.adm-requests__emails { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.adm-requests__emails .adm-linkbtn { align-self: flex-start; padding: 4px 0 0; font-size: 13px; }
+.adm-requests .adm-td-act { white-space: nowrap; }
+.adm-btn--sm { padding: 7px 14px; font-size: 13px; vertical-align: middle; }
+.adm-requests__pick { margin: 0 0 22px; }

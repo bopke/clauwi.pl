@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { mailingStatusLabel, nowUtcSql, type Mailing } from "@/lib/clauwi/mailings";
+import { MAILING_KIND_LABELS, mailingStatusLabel, nowUtcSql, type Mailing } from "@/lib/clauwi/mailings";
 import { getMailingsAction, getSendingSettingsAction, setDailyLimitAction } from "@/app/admin/actions";
 import { formatUtc } from "./MailingView";
 
@@ -61,7 +61,7 @@ export function MailingsTab({ toast }: { toast: (m: string) => void }) {
                 <tr key={m.id}>
                   <td className="adm-td-name">
                     <Link href={`/admin/wysylki/${m.id}`} className="adm-rowlink">{m.subject}</Link>
-                    <div className="adm-td-addr">{m.kind === "newsletter" ? "Newsletter" : "Wiadomość do uczestników"}</div>
+                    <div className="adm-td-addr">{MAILING_KIND_LABELS[m.kind]}</div>
                   </td>
                   <td className="adm-td-addr">{m.audience}</td>
                   <td>

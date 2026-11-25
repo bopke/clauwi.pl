@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { ChevronDown, MapPinned } from "lucide-react";
 import { submitCourseRequestAction, type CourseRequestResult } from "@/app/(public)/kalendarz-wydarzen/actions";
-import { REQUESTABLE_TYPES } from "@/lib/clauwi/courses";
+import { REQUEST_CITIES, REQUESTABLE_TYPES } from "@/lib/clauwi/courses";
 import { COURSE_REQUEST_CONSENT_TEXT } from "@/lib/clauwi/consent";
 import { useTurnstile } from "./use-turnstile";
 
@@ -83,8 +83,11 @@ function RequestForm() {
       </fieldset>
       <div className="grid gap-3 sm:grid-cols-2">
         <label>
-          <span className="sr-only">Miejscowość</span>
-          <input name="city" required minLength={2} maxLength={80} placeholder="Miejscowość, np. Wrocław" autoComplete="address-level2" className={FIELD} />
+          <span className="sr-only">Najbliższe duże miasto</span>
+          <select name="city" required defaultValue="" className={FIELD + " invalid:text-ink/45"}>
+            <option value="" disabled>Najbliższe duże miasto…</option>
+            {REQUEST_CITIES.map((c) => <option key={c} value={c} className="text-ink">{c}</option>)}
+          </select>
         </label>
         <label>
           <span className="sr-only">E-mail (opcjonalnie)</span>
