@@ -73,7 +73,7 @@ function RequestForm() {
         <div className="flex flex-wrap gap-2">
           {REQUESTABLE_TYPES.map((t) => (
             <label key={t} className="cursor-pointer">
-              <input type="checkbox" name="types" value={t} className="peer sr-only" />
+              <input type="radio" name="type" value={t} required className="peer sr-only" />
               <span className="inline-block rounded-[1px] border border-border bg-white px-3 py-1.5 text-sm text-ink/80 transition-colors peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand hover:border-brand">
                 {t}
               </span>

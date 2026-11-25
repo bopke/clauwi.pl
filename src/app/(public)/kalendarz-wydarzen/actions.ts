@@ -84,8 +84,10 @@ export async function submitCourseRequestAction(formData: FormData): Promise<Cou
   if (String(formData.get("website") ?? "").trim()) return { ok: true };
 
   const city = String(formData.get("city") ?? "");
-  const types = [...new Set(formData.getAll("types").map(String))].filter((t) => REQUESTABLE_TYPES.includes(t));
-  if (types.length === 0) return { ok: false, error: "Zaznacz przynajmniej jeden kurs." };
+  // One course per request; stored as a list (course_requests.types).
+  const type = String(formData.get("type") ?? "");
+  if (!REQUESTABLE_TYPES.includes(type)) return { ok: false, error: "Wybierz kurs." };
+  const types = [type];
   if (!REQUEST_CITIES.includes(city)) return { ok: false, error: "Wybierz miasto z listy." };
   const email = String(formData.get("email") ?? "").trim().slice(0, 254);
   if (email && !EMAIL_RE.test(email)) return { ok: false, error: "Podaj poprawny adres e-mail albo zostaw to pole puste." };
