@@ -18,7 +18,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { NewsletterFilters, NewsletterRecipient } from "@/lib/clauwi/newsletter";
-import { buildMessageEmail, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
+import { buildMessageEmail, REQUEST_FOOTER, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
 import { DraftEditor, EMPTY_DRAFT } from "./DraftEditor";
 import type { Course } from "@/lib/clauwi/courses";
 import {
@@ -348,7 +348,11 @@ function Composer({ kind }: { kind: ComposerKind }) {
     const baseUrl = window.location.origin;
     // Newsletter mailings and course notices carry an unsubscribe link (each
     // recipient's own at send time); messages about a course booking don't.
-    return buildMessageEmail(draft, recipient, kind !== "course" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "podglad") } : { baseUrl });
+    return buildMessageEmail(
+      draft,
+      recipient,
+      kind !== "course" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "podglad"), footer: kind === "request" ? REQUEST_FOOTER : undefined } : { baseUrl },
+    );
   }, [draft, recipient, kind]);
 
   const backHref = BACK[kind].href;

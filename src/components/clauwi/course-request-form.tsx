@@ -97,7 +97,7 @@ function RequestForm() {
             maxLength={254}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="E-mail — powiadomimy Cię (opcjonalnie)"
+            placeholder="Twój e-mail (opcjonalnie)"
             autoComplete="email"
             className={FIELD}
           />

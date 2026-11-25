@@ -495,3 +495,4 @@ button.adm-chip.is-on { border-color: currentColor; }
 .adm-requests .adm-td-act { white-space: nowrap; }
 .adm-btn--sm { padding: 7px 14px; font-size: 13px; vertical-align: middle; }
 .adm-requests__pick { margin: 0 0 22px; }
+.adm-requests .adm-btn:disabled { opacity: .4; cursor: default; }

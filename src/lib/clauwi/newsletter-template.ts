@@ -180,10 +180,16 @@ export function unsubscribeUrl(baseUrl: string, token: string): string {
  * recipient's unsubscribe link (footer line); messages to course participants
  * are about their booking and go without.
  */
+/** Footer of a notice to people who asked for a course in their town (mailing kind "request"). */
+export const REQUEST_FOOTER = {
+  note: "Otrzymujesz tę wiadomość, bo na clauwi.pl poprosiłaś(-eś) o informację o kursie w swojej okolicy.",
+  unsubscribeLabel: "Nie chcę więcej wiadomości",
+};
+
 export function buildMessageEmail(
   draft: NewsletterDraft,
   r: NewsletterRecipient,
-  opts: { baseUrl: string; unsubscribeUrl?: string; utm?: Utm },
+  opts: { baseUrl: string; unsubscribeUrl?: string; utm?: Utm; footer?: { note: string; unsubscribeLabel: string } },
 ): RenderedEmail {
   const subject = fillTemplate(draft.subject, r);
   // No heading of its own → repeat the subject, the layout needs one.

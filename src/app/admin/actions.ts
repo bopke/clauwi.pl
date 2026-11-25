@@ -21,7 +21,7 @@ import {
 } from "@/lib/clauwi/newsletter-repo";
 import type { ConsentEntry } from "@/lib/clauwi/consent";
 import { courseMessageRecipients, createCourseMessage, createRequestMessage, requestMessageRecipients } from "@/lib/clauwi/course-messages";
-import { buildMessageEmail, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
+import { buildMessageEmail, REQUEST_FOOTER, unsubscribeUrl, type NewsletterDraft } from "@/lib/clauwi/newsletter-template";
 import {
   cancelMailing, createNewsletterMailing, getDailyLimit, getMailing, listMailingRecipients, mailingPreview, listMailings, pauseMailing,
   processMailing, resumeMailing, retryFailed, sentLast24h, setDailyLimit, type ProcessResult,
@@ -503,7 +503,7 @@ export async function sendTestAction(
   const { subject, html, text } = buildMessageEmail(
     draft,
     recipient,
-    kind !== "course" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "test") } : { baseUrl },
+    kind !== "course" ? { baseUrl, unsubscribeUrl: unsubscribeUrl(baseUrl, "test"), footer: kind === "request" ? REQUEST_FOOTER : undefined } : { baseUrl },
   );
   await sendEmail({ to: address, subject: `[TEST] ${subject}`, html, text, replyTo: { email: CONTACT.email, name: SITE.name } });
 }

@@ -14,7 +14,7 @@ import {
   type Mailing, type MailingCounts, type MailingKind, type MailingRecipientRow, type MailingStatus, type RecipientStatus,
 } from "./mailings";
 import type { NewsletterFilters, NewsletterRecipient } from "./newsletter";
-import { buildMessageEmail, unsubscribeUrl, type NewsletterDraft, type Utm } from "./newsletter-template";
+import { buildMessageEmail, REQUEST_FOOTER, unsubscribeUrl, type NewsletterDraft, type Utm } from "./newsletter-template";
 import { newsletterTokensFor, queueNewsletterRecipientsStmt } from "./newsletter-repo";
 import { sendEmail } from "./brevo";
 import { CONTACT, SITE } from "./site";
@@ -207,7 +207,7 @@ export async function mailingPreview(id: string): Promise<{ html: string; subjec
   const { html, subject } = buildMessageEmail(
     { subject: str(m.subject), heading: str(m.heading), body: str(m.body) },
     JSON.parse(str(first.data)) as NewsletterRecipient,
-    { baseUrl, unsubscribeUrl: m.kind !== "course" ? unsubscribeUrl(baseUrl, "podglad") : undefined, utm: utmFor(m) },
+    { baseUrl, unsubscribeUrl: m.kind !== "course" ? unsubscribeUrl(baseUrl, "podglad") : undefined, utm: utmFor(m), footer: m.kind === "request" ? REQUEST_FOOTER : undefined },
   );
   return { html, subject, email: str(first.email) };
 }
@@ -321,6 +321,7 @@ export async function processMailing(id: string, max = MAILING_CHUNK): Promise<P
           baseUrl,
           unsubscribeUrl: marketing && token ? unsubscribeUrl(baseUrl, token) : undefined,
           utm: utmFor(m),
+          footer: m.kind === "request" ? REQUEST_FOOTER : undefined,
         });
         if (marketing && !token) throw new Error("brak linku wypisu");
         await sendEmail({

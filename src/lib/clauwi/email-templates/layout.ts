@@ -83,6 +83,16 @@ export type RenderOptions = {
    * it out.
    */
   unsubscribeUrl?: string;
+  /**
+   * Why the recipient gets this, above the unsubscribe link, and the link's
+   * text — default: signed up for course news and offers (the newsletter).
+   */
+  footer?: { note: string; unsubscribeLabel: string };
+};
+
+const NEWSLETTER_FOOTER = {
+  note: `Otrzymujesz tę wiadomość, bo Twój adres jest zapisany na informacje o kursach i ofertach ${SITE.name}.`,
+  unsubscribeLabel: "Wypisz się z newslettera",
 };
 
 /** Paragraph, list and link styles the templates can reuse verbatim. */
@@ -121,6 +131,7 @@ export function renderEmail(content: EmailContent, opts: RenderOptions = {}): Re
   const preheader = content.preheader ?? "";
   const year = SITE.name;
   const baseUrl = (opts.baseUrl ?? SITE.url).replace(/\/$/, "");
+  const footer = opts.footer ?? NEWSLETTER_FOOTER;
   const logoUrl = opts.logoUrl ?? `${baseUrl}/brand/email-logo.png`;
 
   const html = `<!DOCTYPE html>
@@ -177,8 +188,8 @@ export function renderEmail(content: EmailContent, opts: RenderOptions = {}): Re
                 <a href="${baseUrl}" style="color: ${THEME.brand};">clauwi.pl</a>
               </p>${opts.unsubscribeUrl ? `
               <p style="margin: 16px 0 0; font-family: ${THEME.body}; font-size: 12px; line-height: 1.6; color: ${THEME.muted}; text-align: center;">
-                Otrzymujesz tę wiadomość, bo Twój adres jest zapisany na informacje o kursach i ofertach ${escapeHtml(SITE.name)}.<br>
-                <a href="${escapeHtml(opts.unsubscribeUrl)}" style="color: ${THEME.muted};">Wypisz się z newslettera</a>
+                ${escapeHtml(footer.note)}<br>
+                <a href="${escapeHtml(opts.unsubscribeUrl)}" style="color: ${THEME.muted};">${escapeHtml(footer.unsubscribeLabel)}</a>
               </p>` : ""}
             </td>
           </tr>
@@ -191,7 +202,7 @@ export function renderEmail(content: EmailContent, opts: RenderOptions = {}): Re
 </body>
 </html>`;
 
-  return { subject: content.subject, html, text: toPlainText(content, opts.unsubscribeUrl) };
+  return { subject: content.subject, html, text: toPlainText(content, opts.unsubscribeUrl, footer.unsubscribeLabel) };
 }
 
 /**
@@ -199,7 +210,7 @@ export function renderEmail(content: EmailContent, opts: RenderOptions = {}): Re
  * apart. Sending text/plain alongside the HTML keeps spam filters happy and
  * covers clients with images and HTML turned off.
  */
-function toPlainText(content: EmailContent, unsubscribeUrl?: string): string {
+function toPlainText(content: EmailContent, unsubscribeUrl?: string, unsubscribeLabel = NEWSLETTER_FOOTER.unsubscribeLabel): string {
   const body = content.body
     .replace(/<br\s*\/?>/gi, "\n")
     // Details boxes are two-column tables — render them as "Label: value".
@@ -234,7 +245,7 @@ function toPlainText(content: EmailContent, unsubscribeUrl?: string): string {
     `${SITE.name} — ${SITE.tagline}`,
     `${CONTACT.email} · ${CONTACT.phone}`,
     SITE.url,
-    ...(unsubscribeUrl ? ["", `Wypisz się z newslettera: ${unsubscribeUrl}`] : []),
+    ...(unsubscribeUrl ? ["", `${unsubscribeLabel}: ${unsubscribeUrl}`] : []),
   ].join("\n");
 }
 
