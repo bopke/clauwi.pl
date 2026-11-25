@@ -9,7 +9,7 @@ import { createBooking } from "@/lib/clauwi/courses-repo";
 import { verifyTurnstileToken } from "@/lib/clauwi/turnstile";
 import { sendCourseBookingEmails } from "@/lib/clauwi/brevo";
 import { recordConsent, unsuppressNewsletterEmail } from "@/lib/clauwi/newsletter-repo";
-import { BOOKING_MARKETING_CONSENT_TEXT } from "@/lib/clauwi/consent";
+import { BOOKING_MARKETING_CONSENT_TEXT, COURSE_REQUEST_CONSENT_TEXT } from "@/lib/clauwi/consent";
 import { addCourseRequest } from "@/lib/clauwi/course-requests-repo";
 import { REQUESTABLE_TYPES } from "@/lib/clauwi/courses";
 
@@ -78,7 +78,7 @@ export async function submitBookingAction(formData: FormData): Promise<BookingFo
 
 export type CourseRequestResult = { ok: true } | { ok: false; error: string };
 
-/** "No course in your city? Let us know" — stores which courses and where, nothing personal. */
+/** "No course in your city? Let us know" — which courses and where, plus an e-mail if they want to hear back. */
 export async function submitCourseRequestAction(formData: FormData): Promise<CourseRequestResult> {
   // Honeypot — real visitors never fill it in; pretend success to a bot.
   if (String(formData.get("website") ?? "").trim()) return { ok: true };
@@ -87,6 +87,9 @@ export async function submitCourseRequestAction(formData: FormData): Promise<Cou
   const types = [...new Set(formData.getAll("types").map(String))].filter((t) => REQUESTABLE_TYPES.includes(t));
   if (types.length === 0) return { ok: false, error: "Zaznacz przynajmniej jeden kurs." };
   if (city.length < 2) return { ok: false, error: "Wpisz nazwę miejscowości." };
+  const email = String(formData.get("email") ?? "").trim().slice(0, 254);
+  if (email && !EMAIL_RE.test(email)) return { ok: false, error: "Podaj poprawny adres e-mail albo zostaw to pole puste." };
+  if (email && formData.get("consent") == null) return { ok: false, error: "Zaznacz zgodę na kontakt albo usuń adres e-mail." };
 
   const turnstileToken = String(formData.get("cf-turnstile-response") ?? "");
   const ip = (await headers()).get("cf-connecting-ip") ?? undefined;
@@ -95,7 +98,7 @@ export async function submitCourseRequestAction(formData: FormData): Promise<Cou
   }
 
   try {
-    await addCourseRequest(city, types);
+    await addCourseRequest({ city, types, email, consent: email ? COURSE_REQUEST_CONSENT_TEXT : "" });
   } catch (e) {
     console.error("course-request: saving failed", e);
     return { ok: false, error: "Nie udało się wysłać. Spróbuj ponownie za chwilę." };

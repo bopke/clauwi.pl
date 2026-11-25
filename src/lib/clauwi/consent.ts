@@ -11,6 +11,9 @@ export const NEWSLETTER_CONSENT_TEXT = "Wyrażam zgodę na otrzymywanie newslett
 /** The optional checkbox on the course booking form (src/components/clauwi/booking-form.tsx). */
 export const BOOKING_MARKETING_CONSENT_TEXT = "Chcę otrzymywać e-mailem informacje o kolejnych kursach i ofertach ClauWi® (opcjonalnie).";
 
+/** The checkbox under the e-mail field of the "no course near you?" widget (src/components/clauwi/course-request-form.tsx). */
+export const COURSE_REQUEST_CONSENT_TEXT = "Wyrażam zgodę na kontakt e-mailowy w sprawie kursu w mojej okolicy, zgodnie z polityką prywatności.";
+
 /** The button on the unsubscribe page that undoes an unsubscribe. */
 export const RESUBSCRIBE_TEXT = "To pomyłka — zapisz mnie ponownie";
 

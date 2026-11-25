@@ -487,23 +487,24 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
   );
 }
 
-type RequestGroup = { city: string; ids: number[]; types: [string, number][]; last: string };
+type RequestGroup = { city: string; ids: number[]; types: [string, number][]; emails: string[]; last: string };
 
 /** Requests from the same place, however it was typed ("wrocław ", "Wrocław"). */
 function groupRequests(list: CourseRequest[]): RequestGroup[] {
-  const groups = new Map<string, { city: string; ids: number[]; types: Map<string, number>; last: string }>();
+  const groups = new Map<string, { city: string; ids: number[]; types: Map<string, number>; emails: Set<string>; last: string }>();
   for (const r of list) {
     const key = r.city.trim().toLocaleLowerCase("pl");
-    const g = groups.get(key) ?? { city: r.city.trim(), ids: [] as number[], types: new Map<string, number>(), last: r.createdAt };
+    const g = groups.get(key) ?? { city: r.city.trim(), ids: [] as number[], types: new Map<string, number>(), emails: new Set<string>(), last: r.createdAt };
     g.ids.push(r.id);
     // Show a capitalised spelling if anyone typed one.
     if (g.city[0] === g.city[0].toLocaleLowerCase("pl") && r.city.trim()[0] !== r.city.trim()[0].toLocaleLowerCase("pl")) g.city = r.city.trim();
     for (const t of r.types) g.types.set(t, (g.types.get(t) ?? 0) + 1);
+    if (r.email) g.emails.add(r.email.toLowerCase());
     if (r.createdAt > g.last) g.last = r.createdAt;
     groups.set(key, g);
   }
   return [...groups.values()]
-    .map((g) => ({ ...g, types: [...g.types].sort((a, b) => b[1] - a[1]) }))
+    .map((g) => ({ ...g, types: [...g.types].sort((a, b) => b[1] - a[1]), emails: [...g.emails] }))
     .sort((a, b) => b.ids.length - a.ids.length || b.last.localeCompare(a.last));
 }
 
@@ -519,6 +520,15 @@ function CourseRequests({ toast }: { toast: (m: string) => void }) {
   useEffect(() => { refresh(); }, [refresh]);
 
   const groups = useMemo(() => groupRequests(list), [list]);
+
+  async function copyEmails(g: RequestGroup) {
+    try {
+      await navigator.clipboard.writeText(g.emails.join(", "));
+      toast(`Skopiowano ${g.emails.length === 1 ? "adres" : "adresy"}: ${g.city}`);
+    } catch {
+      toast("Nie udało się skopiować");
+    }
+  }
 
   async function doDelete() {
     if (!delTarget) return;
@@ -536,11 +546,11 @@ function CourseRequests({ toast }: { toast: (m: string) => void }) {
   return (
     <div className="adm-card adm-requests">
       <h3 className="adm-card__title">Zapytania o kursy w innych miejscowościach <span className="adm-card__n">{list.length}</span></h3>
-      <p className="adm-card__sub">Z formularza „Nie widzisz kursu w swojej okolicy?” pod kalendarzem kursów — anonimowe, bez danych kontaktowych.</p>
+      <p className="adm-card__sub">Z formularza „Nie widzisz kursu w swojej okolicy?” pod kalendarzem kursów. Adresy e-mail podały osoby, które chcą dostać wiadomość, gdy pojawi się tam termin — zgodziły się tylko na kontakt w tej sprawie.</p>
       <div className="adm-tablewrap">
         <table className="adm-table">
           <thead>
-            <tr><th>Miejscowość</th><th>Zapytań</th><th>Kursy</th><th>Ostatnie</th><th className="adm-th-act">Akcje</th></tr>
+            <tr><th>Miejscowość</th><th>Zapytań</th><th>Kursy</th><th>Do powiadomienia</th><th>Ostatnie</th><th className="adm-th-act">Akcje</th></tr>
           </thead>
           <tbody>
             {groups.map((g) => (
@@ -552,6 +562,14 @@ function CourseRequests({ toast }: { toast: (m: string) => void }) {
                     <span key={t} className="adm-statusbadge adm-statusbadge--level adm-requests__type">{t}{n > 1 && ` ×${n}`}</span>
                   ))}
                 </td>
+                <td className="adm-td-addr">
+                  {g.emails.length === 0 ? <span className="adm-requests__none">—</span> : (
+                    <>
+                      {g.emails.map((e) => <div key={e}>{e}</div>)}
+                      <button type="button" className="adm-linkbtn" onClick={() => copyEmails(g)}>Kopiuj adresy</button>
+                    </>
+                  )}
+                </td>
                 <td className="adm-nowrap">{g.last.slice(0, 10)}</td>
                 <td className="adm-td-act">
                   <button className="adm-iconbtn adm-iconbtn--danger" title="Usuń zapytania z tej miejscowości" aria-label={`Usuń zapytania: ${g.city}`} onClick={() => setDelTarget(g)}>
@@ -561,7 +579,7 @@ function CourseRequests({ toast }: { toast: (m: string) => void }) {
               </tr>
             ))}
             {groups.length === 0 && (
-              <tr><td colSpan={5} className="adm-empty">{loading ? "Wczytywanie…" : "Brak zapytań."}</td></tr>
+              <tr><td colSpan={6} className="adm-empty">{loading ? "Wczytywanie…" : "Brak zapytań."}</td></tr>
             )}
           </tbody>
         </table>

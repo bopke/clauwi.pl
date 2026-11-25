@@ -17,11 +17,13 @@ function rowToRequest(r: Row): CourseRequest {
   try {
     types = JSON.parse(String(r.types ?? "[]"));
   } catch {}
-  return { id: Number(r.id), city: String(r.city ?? ""), types, createdAt: String(r.created_at ?? "") };
+  return { id: Number(r.id), city: String(r.city ?? ""), types, email: String(r.email ?? ""), createdAt: String(r.created_at ?? "") };
 }
 
-export async function addCourseRequest(city: string, types: string[]): Promise<void> {
-  await (await db()).prepare("INSERT INTO course_requests (city, types) VALUES (?, ?)").bind(city, JSON.stringify(types)).run();
+/** `email` and `consent` (the wording agreed to) are both empty when no address was given. */
+export async function addCourseRequest(r: { city: string; types: string[]; email: string; consent: string }): Promise<void> {
+  await (await db()).prepare("INSERT INTO course_requests (city, types, email, consent) VALUES (?, ?, ?, ?)")
+    .bind(r.city, JSON.stringify(r.types), r.email, r.consent).run();
 }
 
 export async function listCourseRequests(): Promise<CourseRequest[]> {

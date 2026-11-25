@@ -24,7 +24,7 @@ export const TYPE_SUGGESTIONS = ["Kurs podstawowy", "Kurs zaawansowany", "Refres
 export const REQUESTABLE_TYPES = TYPE_SUGGESTIONS.filter((t) => t !== "Konferencja");
 
 /** A visitor's "no course in my city" request (migrations/0023). */
-export type CourseRequest = { id: number; city: string; types: string[]; createdAt: string };
+export type CourseRequest = { id: number; city: string; types: string[]; email: string; createdAt: string };
 
 export type CourseBookingStatus = "new" | "confirmed" | "cancelled";
 
