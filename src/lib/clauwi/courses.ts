@@ -18,7 +18,7 @@ export type Course = {
 // Quick picks for the admin form. These are display values, not identifiers,
 // so they stay Polish — and the form does not restrict input to them, because
 // the source data shows other variants too.
-export const TYPE_SUGGESTIONS = ["Kurs podstawowy", "Kurs zaawansowany", "Refresh", "Konferencja", "Wsparcie na starcie"];
+export const TYPE_SUGGESTIONS = ["Kurs podstawowy", "Kurs zaawansowany", "Refresh", "Konferencja", "Easybaby"];
 
 /** What visitors can ask for in their city (the widget under the calendar) — a conference isn't one. */
 export const REQUESTABLE_TYPES = TYPE_SUGGESTIONS.filter((t) => t !== "Konferencja");
