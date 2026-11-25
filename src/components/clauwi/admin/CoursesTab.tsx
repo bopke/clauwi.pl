@@ -7,11 +7,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TYPE_SUGGESTIONS } from "@/lib/clauwi/courses";
-import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus } from "@/lib/clauwi/courses";
+import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus, CourseRequest } from "@/lib/clauwi/courses";
 import {
   createCourseAction, deleteCourseAction, getCoursesAdminAction, updateCourseAction,
   getBookingsForCourseAction, updateBookingStatusAction, updateBookingAction, deleteBookingAction,
-  getUnseenBookingCountsAction, markCourseSeenAction,
+  getUnseenBookingCountsAction, markCourseSeenAction, getCourseRequestsAction, deleteCourseRequestsAction,
 } from "@/app/admin/actions";
 import { COURSE_MESSAGE_KEY } from "./MessageComposer";
 
@@ -487,6 +487,98 @@ function BookingsPanel({ course, onClose, toast }: { course: Course; onClose: ()
   );
 }
 
+type RequestGroup = { city: string; ids: number[]; types: [string, number][]; last: string };
+
+/** Requests from the same place, however it was typed ("wrocław ", "Wrocław"). */
+function groupRequests(list: CourseRequest[]): RequestGroup[] {
+  const groups = new Map<string, { city: string; ids: number[]; types: Map<string, number>; last: string }>();
+  for (const r of list) {
+    const key = r.city.trim().toLocaleLowerCase("pl");
+    const g = groups.get(key) ?? { city: r.city.trim(), ids: [] as number[], types: new Map<string, number>(), last: r.createdAt };
+    g.ids.push(r.id);
+    // Show a capitalised spelling if anyone typed one.
+    if (g.city[0] === g.city[0].toLocaleLowerCase("pl") && r.city.trim()[0] !== r.city.trim()[0].toLocaleLowerCase("pl")) g.city = r.city.trim();
+    for (const t of r.types) g.types.set(t, (g.types.get(t) ?? 0) + 1);
+    if (r.createdAt > g.last) g.last = r.createdAt;
+    groups.set(key, g);
+  }
+  return [...groups.values()]
+    .map((g) => ({ ...g, types: [...g.types].sort((a, b) => b[1] - a[1]) }))
+    .sort((a, b) => b.ids.length - a.ids.length || b.last.localeCompare(a.last));
+}
+
+/** "No course in your city?" requests from the public calendar, by place. */
+function CourseRequests({ toast }: { toast: (m: string) => void }) {
+  const [list, setList] = useState<CourseRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [delTarget, setDelTarget] = useState<RequestGroup | null>(null);
+
+  const refresh = useCallback(async () => {
+    try { setList(await getCourseRequestsAction()); } finally { setLoading(false); }
+  }, []);
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const groups = useMemo(() => groupRequests(list), [list]);
+
+  async function doDelete() {
+    if (!delTarget) return;
+    try {
+      await deleteCourseRequestsAction(delTarget.ids);
+      toast("Usunięto zapytania");
+    } catch {
+      toast("Nie udało się usunąć");
+    } finally {
+      setDelTarget(null);
+      await refresh();
+    }
+  }
+
+  return (
+    <div className="adm-card adm-requests">
+      <h3 className="adm-card__title">Zapytania o kursy w innych miejscowościach <span className="adm-card__n">{list.length}</span></h3>
+      <p className="adm-card__sub">Z formularza „Nie widzisz kursu w swojej okolicy?” pod kalendarzem kursów — anonimowe, bez danych kontaktowych.</p>
+      <div className="adm-tablewrap">
+        <table className="adm-table">
+          <thead>
+            <tr><th>Miejscowość</th><th>Zapytań</th><th>Kursy</th><th>Ostatnie</th><th className="adm-th-act">Akcje</th></tr>
+          </thead>
+          <tbody>
+            {groups.map((g) => (
+              <tr key={g.city.toLocaleLowerCase("pl")}>
+                <td className="adm-td-name">{g.city}</td>
+                <td>{g.ids.length}</td>
+                <td>
+                  {g.types.map(([t, n]) => (
+                    <span key={t} className="adm-statusbadge adm-statusbadge--level adm-requests__type">{t}{n > 1 && ` ×${n}`}</span>
+                  ))}
+                </td>
+                <td className="adm-nowrap">{g.last.slice(0, 10)}</td>
+                <td className="adm-td-act">
+                  <button className="adm-iconbtn adm-iconbtn--danger" title="Usuń zapytania z tej miejscowości" aria-label={`Usuń zapytania: ${g.city}`} onClick={() => setDelTarget(g)}>
+                    <TrashIcon />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {groups.length === 0 && (
+              <tr><td colSpan={5} className="adm-empty">{loading ? "Wczytywanie…" : "Brak zapytań."}</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {delTarget && (
+        <Confirm
+          title="Usunąć zapytania?"
+          text={`Usunąć ${delTarget.ids.length === 1 ? "zapytanie" : `${delTarget.ids.length} zapytań`} z miejscowości „${delTarget.city}”? Np. po zaplanowaniu tam kursu. Tej operacji nie można cofnąć.`}
+          confirmLabel="Usuń"
+          onConfirm={doDelete}
+          onClose={() => setDelTarget(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 export function CoursesTab({ toast, onUnseenChange }: { toast: (m: string) => void; onUnseenChange?: (counts: Record<string, number>) => void }) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [unseen, setUnseen] = useState<Record<string, number>>({});
@@ -607,6 +699,8 @@ export function CoursesTab({ toast, onUnseenChange }: { toast: (m: string) => vo
           </tbody>
         </table>
       </div>
+
+      <CourseRequests toast={toast} />
 
       {editing && (
         <CourseForm

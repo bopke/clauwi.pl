@@ -20,6 +20,12 @@ export type Course = {
 // the source data shows other variants too.
 export const TYPE_SUGGESTIONS = ["Kurs podstawowy", "Kurs zaawansowany", "Refresh", "Konferencja", "Wsparcie na starcie"];
 
+/** What visitors can ask for in their city (the widget under the calendar) — a conference isn't one. */
+export const REQUESTABLE_TYPES = TYPE_SUGGESTIONS.filter((t) => t !== "Konferencja");
+
+/** A visitor's "no course in my city" request (migrations/0023). */
+export type CourseRequest = { id: number; city: string; types: string[]; createdAt: string };
+
 export type CourseBookingStatus = "new" | "confirmed" | "cancelled";
 
 export type CourseBooking = {

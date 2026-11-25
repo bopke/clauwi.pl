@@ -10,6 +10,8 @@ import { verifyTurnstileToken } from "@/lib/clauwi/turnstile";
 import { sendCourseBookingEmails } from "@/lib/clauwi/brevo";
 import { recordConsent, unsuppressNewsletterEmail } from "@/lib/clauwi/newsletter-repo";
 import { BOOKING_MARKETING_CONSENT_TEXT } from "@/lib/clauwi/consent";
+import { addCourseRequest } from "@/lib/clauwi/course-requests-repo";
+import { REQUESTABLE_TYPES } from "@/lib/clauwi/courses";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -71,5 +73,32 @@ export async function submitBookingAction(formData: FormData): Promise<BookingFo
     console.error("booking: confirmation e-mails failed to send", e);
   }
 
+  return { ok: true };
+}
+
+export type CourseRequestResult = { ok: true } | { ok: false; error: string };
+
+/** "No course in your city? Let us know" — stores which courses and where, nothing personal. */
+export async function submitCourseRequestAction(formData: FormData): Promise<CourseRequestResult> {
+  // Honeypot — real visitors never fill it in; pretend success to a bot.
+  if (String(formData.get("website") ?? "").trim()) return { ok: true };
+
+  const city = String(formData.get("city") ?? "").trim().replace(/\s+/g, " ").slice(0, 80);
+  const types = [...new Set(formData.getAll("types").map(String))].filter((t) => REQUESTABLE_TYPES.includes(t));
+  if (types.length === 0) return { ok: false, error: "Zaznacz przynajmniej jeden kurs." };
+  if (city.length < 2) return { ok: false, error: "Wpisz nazwę miejscowości." };
+
+  const turnstileToken = String(formData.get("cf-turnstile-response") ?? "");
+  const ip = (await headers()).get("cf-connecting-ip") ?? undefined;
+  if (!(await verifyTurnstileToken(turnstileToken, ip))) {
+    return { ok: false, error: "Weryfikacja bezpieczeństwa nie powiodła się. Spróbuj ponownie." };
+  }
+
+  try {
+    await addCourseRequest(city, types);
+  } catch (e) {
+    console.error("course-request: saving failed", e);
+    return { ok: false, error: "Nie udało się wysłać. Spróbuj ponownie za chwilę." };
+  }
   return { ok: true };
 }

@@ -484,3 +484,8 @@ button.adm-chip.is-on { border-color: currentColor; }
   .adm-bulkbar__actions .adm-btn { flex: 1 1 auto; }
   .adm-bulkbar__actions .adm-btn--danger { flex: 0 0 auto; }
 }
+
+/* ---------- Course requests (under the courses table) ---------- */
+.adm-requests { margin-top: 28px; }
+.adm-requests .adm-tablewrap { box-shadow: none; }
+.adm-requests__type { margin: 2px 6px 2px 0; display: inline-block; }

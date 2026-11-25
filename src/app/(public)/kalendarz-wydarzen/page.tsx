@@ -9,6 +9,7 @@ import { listUpcomingCourses, getBookedCount } from "@/lib/clauwi/courses-repo";
 import { CourseUtil } from "@/lib/clauwi/courses";
 import type { Course } from "@/lib/clauwi/courses";
 import { formatRange } from "@/lib/clauwi/time";
+import { CourseRequestForm } from "@/components/clauwi/course-request-form";
 
 const TITLE = "Kalendarz kursów";
 const DESCRIPTION = "Nadchodzące kursy i szkolenia ClauWi® — terminy, ceny, zapisy.";
@@ -120,6 +121,8 @@ export default async function KalendarzWydarzenPage() {
               })}
             </ul>
           )}
+
+          <CourseRequestForm />
         </section>
       </main>
       <SiteFooter />
