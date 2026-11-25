@@ -59,7 +59,7 @@ export async function submitBookingAction(formData: FormData): Promise<BookingFo
         email, action: "granted", source: "booking", ref: result.booking.id, wording: BOOKING_MARKETING_CONSENT_TEXT, ip: ip ?? "",
       });
     } catch (e) {
-      console.error("recording marketing consent failed", e);
+      console.error("booking: recording marketing consent failed", e);
     }
   }
 
@@ -68,7 +68,7 @@ export async function submitBookingAction(formData: FormData): Promise<BookingFo
   try {
     await sendCourseBookingEmails({ booking: result.booking, course: result.course });
   } catch (e) {
-    console.error("course booking emails failed to send", e);
+    console.error("booking: confirmation e-mails failed to send", e);
   }
 
   return { ok: true };

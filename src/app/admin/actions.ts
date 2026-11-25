@@ -229,7 +229,7 @@ async function sendOrLog(send: () => Promise<void>): Promise<{ emailSent: boolea
     await send();
     return { emailSent: true };
   } catch (e) {
-    console.error("booking notification email failed to send", e);
+    console.error("booking: status e-mail to the participant failed to send", e);
     return { emailSent: false };
   }
 }

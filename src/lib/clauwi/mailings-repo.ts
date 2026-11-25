@@ -326,7 +326,7 @@ export async function processMailing(id: string, max = MAILING_CHUNK): Promise<P
         });
         results.push({ email: c.email, status: "sent", error: "" });
       } catch (e) {
-        console.error("mailing e-mail failed to send", id, c.email, e);
+        console.error("mailing: e-mail failed to send", { mailing: id }, e);
         results.push({ email: c.email, status: "failed", error: String(e instanceof Error ? e.message : e).slice(0, 300) });
       }
     }

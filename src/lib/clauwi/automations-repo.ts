@@ -116,7 +116,8 @@ async function sendOnce(
       replyTo: { email: CONTACT.email, name: SITE.name },
     });
   } catch (e) {
-    console.error("automatic e-mail failed to send", a.key, r.email, e);
+    // The welcome e-mail's ref is the address itself — keep it out of logs.
+    console.error("automation: e-mail failed to send", { automation: a.key, booking: a.key === "welcome" ? undefined : ref }, e);
     status = "failed";
     error = String(e instanceof Error ? e.message : e).slice(0, 300);
   }

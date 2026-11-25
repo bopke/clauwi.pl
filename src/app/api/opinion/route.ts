@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   try {
     await sendOpinionEmail({ name, course, email, opinion });
   } catch (e) {
-    console.error("opinion form send failed", e);
+    console.error("opinion: e-mail failed to send", e);
     return redirectWithStatus(req, "error");
   }
 

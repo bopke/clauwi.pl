@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   try {
     await sendContactEmail({ name, email, message });
   } catch (e) {
-    console.error("contact form send failed", e);
+    console.error("contact: e-mail failed to send", e);
     return redirectWithStatus(req, "error");
   }
 

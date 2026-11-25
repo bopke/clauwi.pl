@@ -80,6 +80,10 @@ export async function createPendingSignup(email: string, wording: string, ip: st
   return token;
 }
 
+export async function deletePendingSignup(token: string): Promise<void> {
+  await (await db()).prepare("DELETE FROM newsletter_pending WHERE token = ? AND confirmed_at IS NULL").bind(token).run();
+}
+
 export type PendingSignup = { email: string; confirmed: boolean; expired: boolean };
 
 export async function findPendingSignup(token: string): Promise<PendingSignup | null> {

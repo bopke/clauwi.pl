@@ -5,7 +5,7 @@
 // list when it's used (src/app/(public)/newsletter/potwierdz/[token]).
 
 import { headers } from "next/headers";
-import { createPendingSignup } from "./newsletter-repo";
+import { createPendingSignup, deletePendingSignup } from "./newsletter-repo";
 import { sendNewsletterConfirmEmail } from "./brevo";
 import { NEWSLETTER_CONSENT_TEXT } from "./consent";
 
@@ -22,6 +22,16 @@ export async function subscribeNewsletterAction(formData: FormData): Promise<{ o
   // The same answer whether or not a link went out — the form must not tell
   // anyone which addresses are on the list.
   const token = await createPendingSignup(email, NEWSLETTER_CONSENT_TEXT, ip);
-  if (token) await sendNewsletterConfirmEmail(email, token);
+  if (token) {
+    try {
+      await sendNewsletterConfirmEmail(email, token);
+    } catch (e) {
+      // Drop the unsent sign-up, or a retry within the hour would be taken
+      // for a repeat and silently skipped.
+      console.error("newsletter: confirmation e-mail failed to send", e);
+      await deletePendingSignup(token);
+      return { ok: false };
+    }
+  }
   return { ok: true };
 }

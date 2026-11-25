@@ -22,7 +22,7 @@ export default {
     });
     ctx.waitUntil(
       (handler.fetch(request, env, ctx) as Promise<Response>).then(async (res) => {
-        if (!res.ok) console.error("cron run failed", res.status, await res.text().catch(() => ""));
+        if (!res.ok) console.error("cron: run failed", res.status, await res.text().catch(() => ""));
       }),
     );
   },

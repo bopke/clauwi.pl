@@ -43,6 +43,7 @@ export async function POST(req: Request) {
   const given =
     new URL(req.url).searchParams.get("secret") ?? req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
   if (!expected || !sameSecret(given, expected)) {
+    console.warn(expected ? "brevo-webhook: rejected a call with a wrong secret" : "brevo-webhook: BREVO_WEBHOOK_SECRET is not set — rejecting");
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
   try {
     payload = await req.json();
   } catch {
+    console.warn("brevo-webhook: body is not JSON");
     return NextResponse.json({ error: "bad json" }, { status: 400 });
   }
 

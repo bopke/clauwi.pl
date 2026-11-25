@@ -17,7 +17,7 @@ export async function confirmSignupAction(token: string): Promise<void> {
     try {
       await sendWelcome(email, await emailBaseUrl());
     } catch (e) {
-      console.error("welcome e-mail failed to send", e);
+      console.error("newsletter: welcome e-mail failed to send", e);
     }
   }
   redirect(`/newsletter/potwierdz/${encodeURIComponent(token)}`);
