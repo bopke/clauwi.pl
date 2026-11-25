@@ -12,7 +12,7 @@ import {
 import { emailBaseUrl, sendBookingStatusEmail, sendBookingUpdatedEmail, sendBookingRemovedEmail, sendEmail } from "@/lib/clauwi/brevo";
 import { BOOKING_FIELD_LABELS } from "@/lib/clauwi/courses";
 import type { Course, CourseBooking, CourseBookingEdit, CourseBookingStatus, CourseRequest } from "@/lib/clauwi/courses";
-import { deleteCourseRequests, listCourseRequests } from "@/lib/clauwi/course-requests-repo";
+import { countCourseRequests, deleteCourseRequests, listCourseRequests } from "@/lib/clauwi/course-requests-repo";
 import type { BookingChange } from "@/lib/clauwi/email-templates/course-booking-updated";
 import {
   adminListNewsletter, adminListNewsletterCourses, adminNewsletterRecipient, adminRemoveFromNewsletter, consentHistory,
@@ -143,6 +143,12 @@ export async function deleteCourseAction(id: string): Promise<void> {
 export async function getCourseRequestsAction(): Promise<CourseRequest[]> {
   await requireAdmin();
   return listCourseRequests();
+}
+
+/** For the "Zapytania" tab's badge. */
+export async function getCourseRequestCountAction(): Promise<number> {
+  await requireAdmin();
+  return countCourseRequests();
 }
 
 export async function deleteCourseRequestsAction(ids: number[]): Promise<void> {

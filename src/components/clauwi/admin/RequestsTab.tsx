@@ -100,7 +100,7 @@ function NotifyModal({ group, onClose }: { group: RequestGroup; onClose: () => v
   );
 }
 
-export function RequestsTab({ toast }: { toast: (m: string) => void }) {
+export function RequestsTab({ toast, onCountChange }: { toast: (m: string) => void; onCountChange?: (n: number) => void }) {
   const [list, setList] = useState<CourseRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -109,8 +109,14 @@ export function RequestsTab({ toast }: { toast: (m: string) => void }) {
   const [delTarget, setDelTarget] = useState<RequestGroup | null>(null);
 
   const refresh = useCallback(async () => {
-    try { setList(await getCourseRequestsAction()); } finally { setLoading(false); }
-  }, []);
+    try {
+      const fresh = await getCourseRequestsAction();
+      setList(fresh);
+      onCountChange?.(fresh.length);
+    } finally {
+      setLoading(false);
+    }
+  }, [onCountChange]);
   useEffect(() => { refresh(); }, [refresh]);
 
   const groups = useMemo(() => groupRequests(list), [list]);

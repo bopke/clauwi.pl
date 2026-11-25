@@ -20,6 +20,12 @@ function rowToRequest(r: Row): CourseRequest {
   return { id: Number(r.id), city: String(r.city ?? ""), types, email: String(r.email ?? ""), createdAt: String(r.created_at ?? "") };
 }
 
+/** Requests still in the list — removed ones are dealt with. */
+export async function countCourseRequests(): Promise<number> {
+  const row = await (await db()).prepare("SELECT count(*) AS n FROM course_requests").first<{ n: number }>();
+  return Number(row?.n ?? 0);
+}
+
 /** `email` and `consent` (the wording agreed to) are both empty when no address was given. */
 export async function addCourseRequest(r: { city: string; types: string[]; email: string; consent: string }): Promise<void> {
   await (await db()).prepare("INSERT INTO course_requests (city, types, email, consent) VALUES (?, ?, ?, ?)")

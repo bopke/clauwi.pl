@@ -11,7 +11,7 @@ import { AdvisorUtil, LEVEL_SUGGESTIONS, REGION_META, validUntilDate, websiteIte
 import type { Advisor, AllowEntry } from "@/lib/clauwi/advisors";
 import {
   addAllowAction, bulkDeleteAdvisorsAction, bulkUpdateAdvisorsAction, createAdvisorAction, deleteAdvisorAction, getAdvisorsAdminAction,
-  getAllowlistAction, removeAllowAction, signOutAction, updateAdvisorAction, getUnseenBookingCountsAction,
+  getAllowlistAction, removeAllowAction, signOutAction, updateAdvisorAction, getUnseenBookingCountsAction, getCourseRequestCountAction,
 } from "@/app/admin/actions";
 import { CoursesTab } from "./CoursesTab";
 import { RequestsTab } from "./RequestsTab";
@@ -551,8 +551,13 @@ export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; in
   const onUnseenChange = useCallback((counts: Record<string, number>) => {
     setUnseenTotal(Object.values(counts).reduce((a, b) => a + b, 0));
   }, []);
+  // Course requests not dealt with (deleted) yet — on the "Zapytania" tab.
+  const [requestCount, setRequestCount] = useState(0);
   useEffect(() => {
-    const load = () => getUnseenBookingCountsAction().then(onUnseenChange, () => {});
+    const load = () => {
+      getUnseenBookingCountsAction().then(onUnseenChange, () => {});
+      getCourseRequestCountAction().then(setRequestCount, () => {});
+    };
     load();
     const onVisible = () => { if (document.visibilityState === "visible") load(); };
     document.addEventListener("visibilitychange", onVisible);
@@ -575,7 +580,10 @@ export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; in
             Kursy
             {unseenTotal > 0 && <span className="adm-tabs__count" title="Nowe zgłoszenia od Twojej ostatniej wizyty">{unseenTotal}</span>}
           </button>
-          <button className={tab === "zapytania" ? "is-active" : ""} onClick={() => setTab("zapytania")}>Zapytania</button>
+          <button className={tab === "zapytania" ? "is-active" : ""} onClick={() => setTab("zapytania")}>
+            Zapytania
+            {requestCount > 0 && <span className="adm-tabs__count" title="Zapytania o kursy czekające na obsłużenie">{requestCount}</span>}
+          </button>
           <button className={tab === "newsletter" ? "is-active" : ""} onClick={() => setTab("newsletter")}>Newsletter</button>
           <button className={tab === "wysylki" ? "is-active" : ""} onClick={() => setTab("wysylki")}>Wysyłki</button>
           <button className={tab === "automatyczne" ? "is-active" : ""} onClick={() => setTab("automatyczne")}>Automatyczne</button>
@@ -627,7 +635,7 @@ export function AdminApp({ user, initialTab = "doradcy" }: { user: AdminUser; in
         ) : tab === "kursy" ? (
           <CoursesTab toast={toast} onUnseenChange={onUnseenChange} />
         ) : tab === "zapytania" ? (
-          <RequestsTab toast={toast} />
+          <RequestsTab toast={toast} onCountChange={setRequestCount} />
         ) : tab === "newsletter" ? (
           <NewsletterTab toast={toast} />
         ) : tab === "wysylki" ? (
