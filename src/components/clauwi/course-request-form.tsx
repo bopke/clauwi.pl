@@ -83,9 +83,9 @@ function RequestForm() {
       </fieldset>
       <div className="grid gap-3 sm:grid-cols-2">
         <label>
-          <span className="sr-only">Najbliższe duże miasto</span>
+          <span className="sr-only">Miasto</span>
           <select name="city" required defaultValue="" className={FIELD + " invalid:text-ink/45"}>
-            <option value="" disabled>Najbliższe duże miasto…</option>
+            <option value="" disabled>Wybierz miasto…</option>
             {REQUEST_CITIES.map((c) => <option key={c} value={c} className="text-ink">{c}</option>)}
           </select>
         </label>
